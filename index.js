@@ -10,7 +10,7 @@ import votesRoutes from "./routes/votes.js";
 import settingsRoutes from "./routes/settings.js";
 import winnerRoutes from "./routes/winner.js";
 import validateNisnRoutes from "./routes/validateNisn.js";
-import resultsRoutes from "./routes/results.js"; // pastikan nama file sesuai
+import resultsRoutes from "./routes/resultsRoutes.js"; // pastikan nama file sesuai
 
 const app = express();
 
@@ -35,7 +35,7 @@ app.use("/votes", votesRoutes);
 app.use("/settings", settingsRoutes);
 app.use("/winner", winnerRoutes);
 app.use("/api/validate-nisn", validateNisnRoutes);
-app.use("/results", resultsRoutes);
+app.use("/resultsRoutes", resultsRoutes);
 
 // Static folder untuk foto
 app.use("/upload", express.static("upload"));
