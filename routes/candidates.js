@@ -30,7 +30,7 @@ router.get("/", async (req, res) => {
 // ✅ Tambah kandidat (dengan foto optional)
 router.post("/", upload.single("photo"), async (req, res) => {
   try {
-    const { name, photo, vision, mission } = req.body;
+    const { name, vision, mission } = req.body;
     const photo = req.file ? req.file.filename : null;
 
     const [result] = await pool.query(
@@ -44,7 +44,6 @@ router.post("/", upload.single("photo"), async (req, res) => {
       photo,
       vision,
       mission,
-      
     });
   } catch (err) {
     console.error(err);
@@ -57,7 +56,7 @@ router.put("/:id", async (req, res) => {
   try {
     const { name, photo, vision, mission } = req.body;
     await pool.query(
-      "UPDATE candidates SET name = ?, hoto = ?, vision = ?, mission = ? WHERE id = ?",
+      "UPDATE candidates SET name = ?, photo = ?, vision = ?, mission = ? WHERE id = ?",
       [name, photo, vision, mission, req.params.id]
     );
     res.json({ message: "Kandidat diperbarui" });
