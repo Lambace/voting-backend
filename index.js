@@ -38,7 +38,7 @@ app.use("/api/validate-nisn", validateNisnRoutes);
 app.use("/results", resultsRoutes);
 
 // Static folder untuk foto
-app.use("/uploads", express.static("uploads"));
+app.use("/upload", express.static("upload"));
 
 // 🔥 Socket.IO
 io.on("connection", (socket) => { 
