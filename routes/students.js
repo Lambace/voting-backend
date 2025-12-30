@@ -4,7 +4,7 @@ import multer from "multer";
 import xlsx from "xlsx";
 import path from "path";
 const router = express.Router();
-const upload = multer({ dest: "uploads/" });
+const upload = multer({ dest: "upload/" });
 
 // ✅ Ambil semua siswa
 router.get("/", async (req, res) => {

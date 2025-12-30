@@ -3,18 +3,19 @@ import pool from "../db.js"; // pastikan koneksi MySQL sudah dibuat di db.js
 import multer from "multer";
 const router = express.Router();
 
-// konfigurasi multer → simpan file di folder "uploads" 
+// konfigurasi multer → simpan file di folder "upload" 
 const storage = multer.diskStorage({ 
   destination: (req, file, cb) => { 
-    cb(null, "uploads/"); }, 
+    cb(null, "upload"); }, 
     filename: (req, file, cb) => { 
 
  // beri nama unik: timestamp + nama asli 
     cb(null, Date.now() + "-" + file.originalname); }, }); 
     const upload = multer({ storage });
+    let candidates = [];
 
 // ✅ Ambil semua kandidat
-router.get("/", async (req, res) => {
+router.get("/candidates", async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT * FROM candidates");
     res.json(rows);
@@ -25,7 +26,7 @@ router.get("/", async (req, res) => {
 });
 
 // ✅ Tambah kandidat (dengan foto optional)
-router.post("/", upload.single("photo"), 
+router.post("/candidates", upload.single("photo"), 
 async (req, res) => 
 { try { 
   const { name, vision, mission } = req.body; 
