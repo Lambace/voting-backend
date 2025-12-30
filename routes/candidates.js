@@ -30,8 +30,8 @@ router.get("/", async (req, res) => {
 // ✅ Tambah kandidat (dengan foto optional)
 router.post("/", upload.single("photo"), async (req, res) => {
   try {
-    const { name, vision, mission } = req.body;
-    const photo = req.file ? req.file.filename : null;
+    const { name, vision, mission } = req.body; // jangan ambil photo dari body
+    const photo = req.file ? req.file.filename : null; // ambil dari upload
 
     const [result] = await pool.query(
       "INSERT INTO candidates (name, photo, vision, mission) VALUES (?, ?, ?, ?)",
@@ -61,6 +61,7 @@ router.put("/:id", async (req, res) => {
     );
     res.json({ message: "Kandidat diperbarui" });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Gagal memperbarui kandidat" });
   }
 });
@@ -71,6 +72,7 @@ router.delete("/:id", async (req, res) => {
     await pool.query("DELETE FROM candidates WHERE id = ?", [req.params.id]);
     res.json({ message: "Kandidat dihapus" });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Gagal menghapus kandidat" });
   }
 });
