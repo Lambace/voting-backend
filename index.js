@@ -10,11 +10,7 @@ import votesRoutes from "./routes/votes.js";
 import settingsRoutes from "./routes/settings.js";
 import winnerRoutes from "./routes/winner.js";
 import validateNisnRoutes from "./routes/validateNisn.js";
-<<<<<<< HEAD
 import resultsRoutes from "./routes/resultsRoutes.js"; // pastikan nama file sesuai
-=======
-import resultsRoutes from "./routes/results.js";
->>>>>>> de504e7e1f0a564eef94a2374fa08c00b1c2176e
 
 const app = express();
 
