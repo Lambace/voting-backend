@@ -13,3 +13,4 @@ Thumbs.db
 
 # Uploads (opsional, kalau tidak mau file hasil upload ikut ke repo)
 uploads
+.cache/
