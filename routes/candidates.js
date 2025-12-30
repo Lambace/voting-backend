@@ -1,21 +1,23 @@
 import express from "express";
-import pool from "../db.js"; // pastikan koneksi MySQL sudah dibuat di db.js
+import pool from "../db.js"; // koneksi MySQL
 import multer from "multer";
+
 const router = express.Router();
 
-// konfigurasi multer → simpan file di folder "upload" 
-const storage = multer.diskStorage({ 
-  destination: (req, file, cb) => { 
-    cb(null, "upload"); }, 
-    filename: (req, file, cb) => { 
-
- // beri nama unik: timestamp + nama asli 
-    cb(null, Date.now() + "-" + file.originalname); }, }); 
-    const upload = multer({ storage });
-    let candidates = [];
+// konfigurasi multer → simpan file di folder "upload"
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "upload");
+  },
+  filename: (req, file, cb) => {
+    // beri nama unik: timestamp + nama asli
+    cb(null, Date.now() + "-" + file.originalname);
+  },
+});
+const upload = multer({ storage });
 
 // ✅ Ambil semua kandidat
-router.get("/candidates", async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT * FROM candidates");
     res.json(rows);
@@ -26,21 +28,37 @@ router.get("/candidates", async (req, res) => {
 });
 
 // ✅ Tambah kandidat (dengan foto optional)
-router.post("/candidates", upload.single("photo"), (req, res) => {
-  const { name, vision, mission } = req.body;
-  const photo = req.file ? req.file.filename : null;
-  const newCandidate = { id: Date.now(), name, vision, mission, photo };
-  candidates.push(newCandidate);
-  res.json(newCandidate);
+router.post("/", upload.single("photo"), async (req, res) => {
+  try {
+    const { name, photo, vision, mission } = req.body;
+    const photo = req.file ? req.file.filename : null;
+
+    const [result] = await pool.query(
+      "INSERT INTO candidates (name, photo, vision, mission) VALUES (?, ?, ?, ?)",
+      [name, photo, vision, mission]
+    );
+
+    res.json({
+      id: result.insertId,
+      name,
+      photo,
+      vision,
+      mission,
+      
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Gagal menambahkan kandidat" });
+  }
 });
 
 // ✅ Edit kandidat
 router.put("/:id", async (req, res) => {
   try {
-    const { name, vision, mission } = req.body;
+    const { name, photo, vision, mission } = req.body;
     await pool.query(
-      "UPDATE candidates SET name = ?, vision = ?, mission = ? WHERE id = ?",
-      [name, vision, mission, req.params.id]
+      "UPDATE candidates SET name = ?, hoto = ?, vision = ?, mission = ? WHERE id = ?",
+      [name, photo, vision, mission, req.params.id]
     );
     res.json({ message: "Kandidat diperbarui" });
   } catch (err) {
@@ -59,4 +77,3 @@ router.delete("/:id", async (req, res) => {
 });
 
 export default router;
-

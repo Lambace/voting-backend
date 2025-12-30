@@ -3,14 +3,14 @@ import cors from "cors";
 import { createServer } from "http"; 
 import { Server } from "socket.io";
 
-// Import routes (pastikan semua file routes export default router)
+// Import routes
 import studentsRoutes from "./routes/students.js";
 import candidatesRoutes from "./routes/candidates.js";
 import votesRoutes from "./routes/votes.js";
 import settingsRoutes from "./routes/settings.js";
 import winnerRoutes from "./routes/winner.js";
 import validateNisnRoutes from "./routes/validateNisn.js";
-import resultsRoutes from "./routes/resultsRoutes.js";
+import resultsRoutes from "./routes/results.js"; // pastikan nama file sesuai
 
 const app = express();
 
@@ -36,7 +36,7 @@ app.use("/settings", settingsRoutes);
 app.use("/winner", winnerRoutes);
 app.use("/api/validate-nisn", validateNisnRoutes);
 app.use("/results", resultsRoutes);
-app.use("/", candidatesRouter);
+
 // Static folder untuk foto
 app.use("/upload", express.static("upload"));
 
