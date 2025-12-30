@@ -5,7 +5,7 @@
     "main":"index.js",
     "scripts":{
     "start":"node index.js",
-    "build": "npm ci --omit=dev"
+    "build": "node index.js"
 },
     "dependencies":{
      "cors":"^2.8.5",
