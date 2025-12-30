@@ -36,7 +36,7 @@ app.use("/settings", settingsRoutes);
 app.use("/winner", winnerRoutes);
 app.use("/api/validate-nisn", validateNisnRoutes);
 app.use("/results", resultsRoutes);
-
+app.use("/", candidatesRouter);
 // Static folder untuk foto
 app.use("/upload", express.static("upload"));
 

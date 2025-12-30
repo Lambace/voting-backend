@@ -26,19 +26,13 @@ router.get("/candidates", async (req, res) => {
 });
 
 // ✅ Tambah kandidat (dengan foto optional)
-router.post("/candidates", upload.single("photo"), 
-async (req, res) => 
-{ try { 
-  const { name, vision, mission } = req.body; 
-  const photo = req.file ? req.file.filename : null; 
-
-  // ambil nama file dari multer 
-  const [result] = await pool.query( "INSERT INTO candidates (name, photo, vision, mission) VALUES (?, ?, ?, ?)", 
-  [name, photo, vision, mission] ); 
-  res.json({ 
-    id: result.insertId, name, photo, vision, mission }); } 
-    catch (err) { console.error(err); res.status(500).json({
-    error: "Gagal menambahkan kandidat" }); } });
+router.post("/candidates", upload.single("photo"), (req, res) => {
+  const { name, vision, mission } = req.body;
+  const photo = req.file ? req.file.filename : null;
+  const newCandidate = { id: Date.now(), name, vision, mission, photo };
+  candidates.push(newCandidate);
+  res.json(newCandidate);
+});
 
 // ✅ Edit kandidat
 router.put("/:id", async (req, res) => {
