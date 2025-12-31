@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import serverless from "serverless-http";
-
+impor5 testrouter from "./routes/test.js
 // Import routes
 import studentsRoutes from "./routes/students.js";
 import candidatesRoutes from "./routes/candidates.js";
@@ -19,7 +19,7 @@ app.use(express.json());
 app.get("/", (req, res) => {
   res.send("Voting backend is online!");
 });
-
+app.use("/test", testRouter);
 // Gunakan router
 app.use("/students", studentsRoutes);
 app.use("/candidates", candidatesRoutes);
