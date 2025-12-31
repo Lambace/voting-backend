@@ -2,7 +2,6 @@ import express from "express";
 import cors from "cors";
 
 // Import routes
-import testRouter from "./routes/test.js";
 import studentsRoutes from "./routes/students.js";
 import candidatesRoutes from "./routes/candidates.js";
 import votesRoutes from "./routes/votes.js";
@@ -20,7 +19,7 @@ app.get("/", (req, res) => {
   res.send("Voting backend is online!");
 });
 
-app.use("/test", testRouter);
+
 app.use("/students", studentsRoutes);
 app.use("/candidates", candidatesRoutes);
 app.use("/votes", votesRoutes);
