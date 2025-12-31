@@ -1,22 +1,22 @@
 {
-    "name":"voting-backend",
-    "version":"1.0.0",
-    "type":"module",
-    "main":"index.js",
-    "scripts":{
-    "start":"node index.js",
-    "build": "echo 'No build step needed'"
-},
-    "dependencies":{
-     "cors":"^2.8.5",
-    "express":"^5.2.1",
-    "multer":"^2.0.2",
-    "mysql2":"^3.16.0",
-    "socket.io":"^4.8.3",
-    "xlsx":"^0.18.5"
-}, 
-
-"engines": { "node": "24.x"
- } 
-
+    "name": "voting-backend",
+    "version": "1.0.0",
+    "type": "module",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "build": "echo 'No build step needed'"
+    },
+    "dependencies": {
+        "cors": "^2.8.5",
+        "express": "^5.2.1",
+        "multer": "^2.0.2",
+        "mysql2": "^3.16.0",
+        "pg": "^8.16.3",
+        "socket.io": "^4.8.3",
+        "xlsx": "^0.18.5"
+    },
+    "engines": {
+        "node": "24.x"
+    }
 }
