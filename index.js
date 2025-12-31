@@ -10,6 +10,9 @@ import winnerRoutes from "./routes/winner.js";
 import validateNisnRoutes from "./routes/validateNisn.js";
 import resultsRoutes from "./routes/resultsRoutes.js";
 
+
+const io = new Server(server, { cors: { origin: "*" } }); // export io supaya bisa dipakai di routes 
+export { io };
 const app = express();
 app.use(cors());
 app.use(express.json());
