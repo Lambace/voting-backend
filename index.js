@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-
+import { Server } from "socket.io";
 // Import routes
 import studentsRoutes from "./routes/students.js";
 import candidatesRoutes from "./routes/candidates.js";
