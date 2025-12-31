@@ -1,15 +1,15 @@
 import express from "express";
 import cors from "cors";
-import serverless from "serverless-http";
-impor5 testrouter from "./routes/test.js
+
 // Import routes
+import testRouter from "./routes/test.js";
 import studentsRoutes from "./routes/students.js";
 import candidatesRoutes from "./routes/candidates.js";
 import votesRoutes from "./routes/votes.js";
 import settingsRoutes from "./routes/settings.js";
 import winnerRoutes from "./routes/winner.js";
 import validateNisnRoutes from "./routes/validateNisn.js";
-import resultsRoutes from "./routes/resultsRoutes.js"; // pastikan nama file sesuai
+import resultsRoutes from "./routes/resultsRoutes.js";
 
 const app = express();
 app.use(cors());
@@ -19,8 +19,8 @@ app.use(express.json());
 app.get("/", (req, res) => {
   res.send("Voting backend is online!");
 });
+
 app.use("/test", testRouter);
-// Gunakan router
 app.use("/students", studentsRoutes);
 app.use("/candidates", candidatesRoutes);
 app.use("/votes", votesRoutes);
@@ -32,5 +32,8 @@ app.use("/resultsRoutes", resultsRoutes);
 // Static folder untuk foto
 app.use("/upload", express.static("upload"));
 
-// Export untuk Vercel
-export default serverless(app);
+// Jalankan server (WAJIB untuk Railway)
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
