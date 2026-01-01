@@ -117,4 +117,26 @@ app.post('/votes', async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Sudah memilih" }); }
 });
 
+// --- RESET SEMUA DATA VOTING (Hapus semua isi tabel votes) ---
+app.delete('/votes/reset-all', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM votes');
+    res.json({ success: true, message: "Semua data suara telah direset (dikosongkan)." });
+  } catch (err) {
+    res.status(500).json({ error: "Gagal mereset data suara" });
+  }
+});
+
+// --- RESET SATU NISN (Hapus vote milik satu siswa saja) ---
+app.delete('/votes/reset/:nisn', async (req, res) => {
+  const { nisn } = req.params;
+  try {
+    await pool.query('DELETE FROM votes WHERE nisn = $1', [nisn]);
+    res.json({ success: true, message: `Data suara NISN ${nisn} berhasil direset.` });
+  } catch (err) {
+    res.status(500).json({ error: "Gagal mereset suara siswa" });
+  }
+});
+
+
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));
