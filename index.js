@@ -1,67 +1,72 @@
-// --- PROSES LOGIN (Cek NISN di tabel students) ---
+import express from 'express';
+import cors from 'cors';
+import pool from './db.js'; // Pastikan file db.js Anda sudah benar
+
+const app = express();
+const PORT = process.env.PORT || 8080;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// --- ROUTES ---
+
+// 1. Route Test (Opsional - untuk cek backend hidup)
+app.get('/', (req, res) => {
+  res.send('Backend E-Voting SMK 2 Kolaka Berjalan!');
+});
+
+// 2. Route Login (Sesuai tabel students Anda)
 app.post('/login', async (req, res) => {
   const { nisn } = req.body;
-
-  if (!nisn) {
-    return res.status(400).json({ success: false, message: "NISN wajib diisi" });
-  }
-
   try {
-    // 1. Cek apakah NISN terdaftar di tabel students
     const studentCheck = await pool.query('SELECT * FROM students WHERE nisn = $1', [nisn]);
 
     if (studentCheck.rows.length === 0) {
       return res.status(401).json({ success: false, message: "NISN tidak terdaftar!" });
     }
 
-    const student = studentCheck.rows[0];
-
-    // 2. Cek apakah sudah pernah memilih di tabel votes
     const voteCheck = await pool.query('SELECT * FROM votes WHERE nisn = $1', [nisn]);
     
-    if (voteCheck.rows.length > 0) {
-      return res.json({ 
-        success: true, 
-        message: "Anda sudah melakukan voting sebelumnya.",
-        alreadyVoted: true,
-        user: student 
-      });
-    }
-
-    // 3. Login Berhasil
     res.json({ 
       success: true, 
-      message: "Login Berhasil", 
-      alreadyVoted: false,
-      user: student 
+      alreadyVoted: voteCheck.rows.length > 0,
+      user: studentCheck.rows[0] 
     });
-
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: "Database Error" });
+    res.status(500).json({ error: "Database error" });
   }
 });
 
-// --- PROSES VOTING (Simpan ke tabel votes) ---
+// 3. Ambil Daftar Kandidat
+app.get('/candidates', async (req, res) => {
+  try {
+    const results = await pool.query('SELECT * FROM candidates ORDER BY id ASC');
+    res.json(results.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 4. Proses Voting
 app.post('/votes', async (req, res) => {
   const { nisn, candidate_id } = req.body;
-
   try {
-    // Keamanan: Cek ulang apakah sudah memilih
+    // Cek duplikasi vote
     const check = await pool.query('SELECT * FROM votes WHERE nisn = $1', [nisn]);
     if (check.rows.length > 0) {
-      return res.status(400).json({ success: false, message: "Anda sudah memilih!" });
+      return res.status(400).json({ error: "Anda sudah memilih!" });
     }
 
-    // Simpan suara baru
-    await pool.query(
-      'INSERT INTO votes (nisn, candidate_id) VALUES ($1, $2)',
-      [nisn, candidate_id]
-    );
-
-    res.json({ success: true, message: "Terima kasih, suara Anda telah direkam!" });
+    await pool.query('INSERT INTO votes (nisn, candidate_id) VALUES ($1, $2)', [nisn, candidate_id]);
+    res.json({ success: true, message: "Suara berhasil dikirim" });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Gagal mengirim suara" });
+    res.status(500).json({ error: "Gagal menyimpan suara" });
   }
+});
+
+// Menjalankan Server
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
