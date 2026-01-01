@@ -1,59 +1,67 @@
-import express from "express";
-import http from "http";
-import cors from "cors";
-import { Server } from "socket.io";
-
-// Import routes
-import studentsRoutes from "./routes/students.js";
-import candidatesRoutes from "./routes/candidates.js";
-import votesRoutes from "./routes/votes.js";
-import settingsRoutes from "./routes/settings.js";
-import winnerRoutes from "./routes/winner.js";
-import validateNisnRoutes from "./routes/validateNisn.js";
-import resultsRoutes from "./routes/resultsRoutes.js";
-import testRoutes from "./routes/test.js";
-
-const app = express();
-app.use(cors({
-  origin: '*', 
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-app.use(express.json());
-
-// Buat server HTTP + Socket.IO
-const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
-export { io };
-
-// ✅ Route default untuk tes
-app.get("/", (req, res) => {
-  res.json({ message: "Voting backend is online!" });
-});
-
-// ✅ Pasang semua routes dengan path konsisten
-app.use("/students", studentsRoutes);
-app.use("/candidates", candidatesRoutes);
-app.use("/votes", votesRoutes);
-app.use("/settings", settingsRoutes);
-app.use("/winner", winnerRoutes);
-app.use("/validate-nisn", validateNisnRoutes);   // konsisten tanpa /api
-app.use("/results", resultsRoutes);              // konsisten tanpa /Routes
-app.use("/test", testRoutes);
-
-// ✅ Tambahkan route login (NISN)
-app.post("/login", (req, res) => {
+// --- PROSES LOGIN (Cek NISN di tabel students) ---
+app.post('/login', async (req, res) => {
   const { nisn } = req.body;
-  if (!nisn) return res.status(400).json({ error: "NISN wajib diisi" });
-  // TODO: validasi ke database students
-  res.json({ message: "Login berhasil", nisn });
+
+  if (!nisn) {
+    return res.status(400).json({ success: false, message: "NISN wajib diisi" });
+  }
+
+  try {
+    // 1. Cek apakah NISN terdaftar di tabel students
+    const studentCheck = await pool.query('SELECT * FROM students WHERE nisn = $1', [nisn]);
+
+    if (studentCheck.rows.length === 0) {
+      return res.status(401).json({ success: false, message: "NISN tidak terdaftar!" });
+    }
+
+    const student = studentCheck.rows[0];
+
+    // 2. Cek apakah sudah pernah memilih di tabel votes
+    const voteCheck = await pool.query('SELECT * FROM votes WHERE nisn = $1', [nisn]);
+    
+    if (voteCheck.rows.length > 0) {
+      return res.json({ 
+        success: true, 
+        message: "Anda sudah melakukan voting sebelumnya.",
+        alreadyVoted: true,
+        user: student 
+      });
+    }
+
+    // 3. Login Berhasil
+    res.json({ 
+      success: true, 
+      message: "Login Berhasil", 
+      alreadyVoted: false,
+      user: student 
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Database Error" });
+  }
 });
 
-// ✅ Static folder untuk foto kandidat
-app.use("/upload", express.static("upload"));
+// --- PROSES VOTING (Simpan ke tabel votes) ---
+app.post('/votes', async (req, res) => {
+  const { nisn, candidate_id } = req.body;
 
-// ✅ Jalankan server (Railway pakai PORT dari env)
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  try {
+    // Keamanan: Cek ulang apakah sudah memilih
+    const check = await pool.query('SELECT * FROM votes WHERE nisn = $1', [nisn]);
+    if (check.rows.length > 0) {
+      return res.status(400).json({ success: false, message: "Anda sudah memilih!" });
+    }
+
+    // Simpan suara baru
+    await pool.query(
+      'INSERT INTO votes (nisn, candidate_id) VALUES ($1, $2)',
+      [nisn, candidate_id]
+    );
+
+    res.json({ success: true, message: "Terima kasih, suara Anda telah direkam!" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Gagal mengirim suara" });
+  }
 });
