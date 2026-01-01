@@ -15,9 +15,9 @@ import testRoutes from "./routes/test.js";
 
 const app = express();
 app.use(cors({
-  origin: "*", // atau spesifik: ["http://localhost:3000", "https://pilketos-frontend.vercel.app"]
-  methods: ["GET", "POST"],
-  allowedHeaders: ["Content-Type"]
+  origin: '*', 
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 
