@@ -1,15 +1,16 @@
-import express from 'express';
-import pool from '../db.js';
+import express from "express";
+import pool from "../db.js"; // koneksi Postgres
 
 const router = express.Router();
 
-router.get('/', async (req, res) => {
+// ✅ Tes koneksi database
+router.get("/", async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT NOW() AS waktu');
-    res.json(rows);
+    const result = await pool.query("SELECT NOW() AS waktu");
+    res.json(result.rows[0]); // ambil baris pertama
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Database error' });
+    console.error("Error test koneksi:", err);
+    res.status(500).json({ error: "Database error" });
   }
 });
 

@@ -3,19 +3,20 @@ import pool from "../db.js";
 
 const router = express.Router();
 
+// ✅ Validasi NISN
 router.post("/", async (req, res) => {
   const { nisn } = req.body;
 
   try {
     // cek apakah nisn ada di tabel students
-    const [rows] = await pool.query("SELECT * FROM students WHERE nisn = ?", [nisn]);
+    const result = await pool.query("SELECT * FROM students WHERE nisn = $1", [nisn]);
 
-    if (rows.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(400).json({ success: false, message: "NISN tidak ditemukan" });
     }
 
     // kalau ada, kirim data siswa juga biar frontend bisa pakai
-    const student = rows[0];
+    const student = result.rows[0];
     return res.json({
       success: true,
       message: "Login berhasil",
