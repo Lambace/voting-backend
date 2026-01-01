@@ -1,4 +1,3 @@
-import * as dotenv from 'dotenv'; // Tambahkan * as
 import pkg from 'pg';
 
 dotenv.config();
