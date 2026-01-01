@@ -1,16 +1,15 @@
-import dotenv from 'dotenv';
 import pkg from 'pg';
 
 dotenv.config();
 const { Pool } = pkg;
 
 const pool = new Pool({
-  host: process.env.PGHOST,
-  port: process.env.PGPORT,
-  user: process.env.PGUSER,
-  password: process.env.PGPASSWORD,
-  database: process.env.PGDATABASE,
-  ssl: { rejectUnauthorized: false } // Railway butuh SSL
+  // Menggunakan connectionString dari variabel DATABASE_URL
+  connectionString: process.env.DATABASE_URL,
+  ssl: { 
+    rejectUnauthorized: false // Wajib ada untuk koneksi database cloud
+  },
+  connectionTimeoutMillis: 10000, // Menunggu 10 detik sebelum timeout
 });
 
 export default pool;
