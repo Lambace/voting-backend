@@ -10,7 +10,7 @@ import settingsRoutes from "./routes/settings.js";
 import winnerRoutes from "./routes/winner.js";
 import validateNisnRoutes from "./routes/validateNisn.js";
 import resultsRoutes from "./routes/resultsRoutes.js";
-
+import testRoutes from "./routes/test.js";
 
 
 const app = express();
@@ -33,7 +33,7 @@ app.use("/settings", settingsRoutes);
 app.use("/winner", winnerRoutes);
 app.use("/api/validate-nisn", validateNisnRoutes);
 app.use("/resultsRoutes", resultsRoutes);
-
+app.use("/test", testRoutes);
 // Static folder untuk foto
 app.use("/upload", express.static("upload"));
 
