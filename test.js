@@ -1,12 +1,8 @@
-import pool from "./db.js";
+import pool from './db.js';
 
-(async () => {
-  try {
-    const result = await pool.query("SELECT NOW()");
-    console.log("Koneksi berhasil:", result.rows[0]);
-  } catch (err) {
-    console.error("Koneksi gagal:", err.message);
-  } finally {
-    pool.end();
-  }
-})();
+const test = async () => {
+  const result = await pool.query('SELECT NOW() AS waktu');
+  console.log(result.rows);
+};
+
+test();
