@@ -30,6 +30,19 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// Rute untuk download format siswa
+app.get('/students/download-format', (req, res) => {
+  // Pastikan nama file 'student-format.xlsx' sama persis dengan yang ada di folder upload
+  const filePath = path.join(__dirname, 'upload', 'student-format.xlsx');
+  
+  res.download(filePath, 'Format_Import_Siswa.xlsx', (err) => {
+    if (err) {
+      console.error("Gagal mendownload file:", err);
+      // Jika error, beri tahu user bahwa file fisik tidak ditemukan
+      res.status(404).json({ message: "File format tidak ditemukan di folder upload" });
+    }
+  });
+});
 // --- 2. ROUTES ---
 app.use('/settings', settingsRoutes);
 
