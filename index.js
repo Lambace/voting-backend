@@ -51,6 +51,29 @@ app.post('/login', async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Error" }); }
 });
 
+// --- PROSES VOTING ---
+app.post('/votes', async (req, res) => {
+  const { nisn, candidate_id } = req.body;
+  
+  try {
+    // 1. Cek apakah NISN ini sudah pernah memilih sebelumnya
+    const checkVote = await pool.query('SELECT * FROM votes WHERE nisn = $1', [nisn]);
+    if (checkVote.rows.length > 0) {
+      return res.status(400).json({ error: "Anda sudah menggunakan hak suara." });
+    }
+
+    // 2. Masukkan suara ke database
+    await pool.query(
+      'INSERT INTO votes (nisn, candidate_id) VALUES ($1, $2)',
+      [nisn, candidate_id]
+    );
+
+    res.json({ success: true, message: "Suara berhasil dikirim!" });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: "Gagal menyimpan suara ke database" });
+  }
+});
 // ... (Masukkan kembali rute post/put/delete kandidat dan siswa yang sebelumnya di sini) ...
 
 // Rute dasar untuk cek jika backend hidup
