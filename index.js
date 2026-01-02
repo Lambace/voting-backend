@@ -23,14 +23,14 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Menyediakan akses publik ke folder upload (Pastikan folder ini ada di GitHub)
+// Menyediakan akses publik ke folder upload
 app.use('/upload', express.static(path.join(__dirname, 'upload')));
 
 // --- 2. KONFIGURASI MULTER ---
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = path.join(__dirname, 'upload');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },
   filename: (req, file, cb) => {
@@ -40,9 +40,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-// --- 3. RUTE SISWA (PENTING!) ---
+// --- 3. RUTE SISWA ---
 
-// AMBIL SEMUA SISWA (Ini yang sebelumnya 'Cannot GET')
+// AMBIL SEMUA SISWA (Solusi Error 'Cannot GET /students')
 app.get('/students', async (req, res) => {
   try {
     const resDb = await pool.query('SELECT * FROM students ORDER BY tingkat ASC, kelas ASC, name ASC');
@@ -53,15 +53,15 @@ app.get('/students', async (req, res) => {
   }
 });
 
-// DOWNLOAD FORMAT
+// DOWNLOAD FORMAT EXCEL
 app.get('/students/download-format', (req, res) => {
   const filePath = path.join(__dirname, 'upload', 'student-format.xlsx');
   res.download(filePath, 'Format_Import_Siswa.xlsx', (err) => {
-    if (err) res.status(404).json({ message: "File format tidak ditemukan." });
+    if (err) res.status(404).json({ message: "File format tidak ditemukan di server." });
   });
 });
 
-// IMPORT EXCEL
+// IMPORT EXCEL KE DATABASE
 app.post('/students/import', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "File tidak ada" });
@@ -72,6 +72,7 @@ app.post('/students/import', upload.single('file'), async (req, res) => {
     for (const row of data) {
       const { nisn, name, tingkat, kelas } = row;
       if (!nisn || !name) continue;
+      
       await pool.query(
         `INSERT INTO students (nisn, name, tingkat, kelas) 
          VALUES ($1, $2, $3, $4) 
@@ -79,10 +80,14 @@ app.post('/students/import', upload.single('file'), async (req, res) => {
         [nisn.toString(), name, tingkat?.toString(), kelas?.toString()]
       );
     }
-    fs.unlinkSync(req.file.path); // Hapus file sementara
-    res.json({ success: true, message: `${data.length} data berhasil diimport` });
+    
+    // Hapus file sementara setelah diproses
+    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    
+    res.json({ success: true, message: `${data.length} data berhasil diproses` });
   } catch (err) {
-    res.status(500).json({ error: "Gagal import" });
+    console.error(err);
+    res.status(500).json({ error: "Gagal memproses file import" });
   }
 });
 
@@ -98,9 +103,14 @@ app.post('/login', async (req, res) => {
   const { nisn } = req.body;
   try {
     const s = await pool.query('SELECT * FROM students WHERE nisn = $1', [nisn]);
-    if (s.rows.length === 0) return res.status(401).json({ message: "NISN tidak ada" });
+    if (s.rows.length === 0) return res.status(401).json({ message: "NISN tidak terdaftar" });
+    
     const v = await pool.query('SELECT * FROM votes WHERE nisn = $1', [nisn]);
-    res.json({ success: true, alreadyVoted: v.rows.length > 0, user: s.rows[0] });
+    res.json({ 
+      success: true, 
+      alreadyVoted: v.rows.length > 0, 
+      user: s.rows[0] 
+    });
   } catch (err) { res.status(500).json({ error: "Server Error" }); }
 });
 
@@ -109,6 +119,7 @@ app.post('/votes', async (req, res) => {
   try {
     const check = await pool.query('SELECT * FROM votes WHERE nisn = $1', [nisn]);
     if (check.rows.length > 0) return res.status(400).json({ error: "Sudah memilih" });
+    
     await pool.query('INSERT INTO votes (nisn, candidate_id) VALUES ($1, $2)', [nisn, candidate_id]);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: "Gagal simpan suara" }); }
@@ -117,4 +128,5 @@ app.post('/votes', async (req, res) => {
 // --- 5. LAIN-LAIN ---
 app.use('/settings', settingsRoutes);
 app.get('/', (req, res) => res.send("Backend OSIS Berhasil Jalan!"));
+
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
