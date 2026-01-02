@@ -11,7 +11,10 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const upload = multer({ dest: 'upload/' });
+cconst upload = multer({ 
+  dest: path.join(__dirname, 'upload/'),
+  limits: { fileSize: 5 * 1024 * 1024 } // Batas 5MB agar tidak error koneksi
+});
 // --- 1. KONFIGURASI CORS (WAJIB DI ATAS) ---
 app.use(cors({
   origin: '*', // Mengizinkan semua domain (termasuk Vercel baru Anda)
