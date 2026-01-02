@@ -5,17 +5,17 @@ import multer from 'multer';
 import path from 'path';
 import xlsx from 'xlsx';
 import { fileURLToPath } from 'url';
-import settingsRoutes from './routes/settings.js';
 import fs from 'fs';
+import settingsRoutes from './routes/settings.js';
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// --- 1. KONFIGURASI MIDDLEWARE ---
+// --- 1. MIDDLEWARE ---
 app.use(cors({
-  origin: '*', 
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -23,70 +23,26 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Menyediakan akses publik ke folder upload
+// Menyediakan akses publik ke folder upload (Pastikan folder ini ada di GitHub)
 app.use('/upload', express.static(path.join(__dirname, 'upload')));
 
-// --- 2. KONFIGURASI MULTER (PENYIMPANAN FILE) ---
-// Gunakan satu konfigurasi multer yang fleksibel
+// --- 2. KONFIGURASI MULTER ---
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = path.join(__dirname, 'upload');
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir);
-    }
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir);
     cb(null, dir);
   },
   filename: (req, file, cb) => {
-    // Memberi nama unik untuk foto, tapi tetap menjaga nama asli untuk excel sementara
     cb(null, Date.now() + '-' + file.originalname);
   }
 });
 
-const upload = multer({ 
-  storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 } // Batas 10MB
-});
+const upload = multer({ storage: storage });
 
-// --- 3. RUTE MAHASISWA (IMPORT & DOWNLOAD) ---
+// --- 3. RUTE SISWA (PENTING!) ---
 
-// Rute untuk download format siswa
-app.get('/students/download-format', (req, res) => {
-  const filePath = path.join(__dirname, 'upload', 'student-format.xlsx');
-  
-  res.download(filePath, 'Format_Import_Siswa.xlsx', (err) => {
-    if (err) {
-      console.error("Gagal mendownload file:", err);
-      res.status(404).json({ message: "File format tidak ditemukan di server." });
-    }
-  });
-});
-
-// Rute import file excel
-app.post('/students/import', upload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: "Tidak ada file yang diunggah" });
-    }
-
-    const workbook = xlsx.readFile(req.file.path);
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const data = xlsx.utils.sheet_to_json(sheet);
-
-    for (const row of data) {
-      // Pastikan nama kolom di Excel adalah nisn, name, tingkat, kelas (huruf kecil)
-      const { nisn, name, tingkat, kelas } = row;
-      
-      if (!nisn || !name) continue; // Skip jika data kosong
-
-      await pool.query(
-        `INSERT INTO students (nisn, name, tingkat, kelas) 
-         VALUES ($1, $2, $3, $4) 
-         ON CONFLICT (nisn) DO UPDATE SET name = $2, tingkat = $3, kelas = $4`,
-        [nisn.toString(), name, tingkat?.toString(), kelas?.toString()]
-      );
-    }
-// Ambil semua data siswa untuk ditampilkan di tabel Admin
+// AMBIL SEMUA SISWA (Ini yang sebelumnya 'Cannot GET')
 app.get('/students', async (req, res) => {
   try {
     const resDb = await pool.query('SELECT * FROM students ORDER BY tingkat ASC, kelas ASC, name ASC');
@@ -96,66 +52,69 @@ app.get('/students', async (req, res) => {
     res.status(500).json({ error: "Gagal mengambil data siswa" });
   }
 });
-    // Hapus file sementara setelah diproses
-    fs.unlinkSync(req.file.path);
 
-    res.json({ success: true, message: `${data.length} data siswa berhasil diproses` });
+// DOWNLOAD FORMAT
+app.get('/students/download-format', (req, res) => {
+  const filePath = path.join(__dirname, 'upload', 'student-format.xlsx');
+  res.download(filePath, 'Format_Import_Siswa.xlsx', (err) => {
+    if (err) res.status(404).json({ message: "File format tidak ditemukan." });
+  });
+});
+
+// IMPORT EXCEL
+app.post('/students/import', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "File tidak ada" });
+
+    const workbook = xlsx.readFile(req.file.path);
+    const data = xlsx.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+
+    for (const row of data) {
+      const { nisn, name, tingkat, kelas } = row;
+      if (!nisn || !name) continue;
+      await pool.query(
+        `INSERT INTO students (nisn, name, tingkat, kelas) 
+         VALUES ($1, $2, $3, $4) 
+         ON CONFLICT (nisn) DO UPDATE SET name = $2, tingkat = $3, kelas = $4`,
+        [nisn.toString(), name, tingkat?.toString(), kelas?.toString()]
+      );
+    }
+    fs.unlinkSync(req.file.path); // Hapus file sementara
+    res.json({ success: true, message: `${data.length} data berhasil diimport` });
   } catch (err) {
-    console.error("Gagal import:", err);
-    res.status(500).json({ error: "Terjadi kesalahan saat memproses file" });
+    res.status(500).json({ error: "Gagal import" });
   }
 });
 
-// --- 4. RUTE SETTINGS & KANDIDAT ---
-app.use('/settings', settingsRoutes);
-
+// --- 4. RUTE KANDIDAT & VOTING ---
 app.get('/candidates', async (req, res) => {
   try {
     const resDb = await pool.query('SELECT * FROM candidates ORDER BY id ASC');
     res.json(resDb.rows);
-  } catch (err) { 
-    res.status(500).json({ error: err.message }); 
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// --- 5. RUTE LOGIN & VOTING ---
 app.post('/login', async (req, res) => {
   const { nisn } = req.body;
   try {
     const s = await pool.query('SELECT * FROM students WHERE nisn = $1', [nisn]);
-    if (s.rows.length === 0) return res.status(401).json({ message: "NISN tidak terdaftar" });
-    
+    if (s.rows.length === 0) return res.status(401).json({ message: "NISN tidak ada" });
     const v = await pool.query('SELECT * FROM votes WHERE nisn = $1', [nisn]);
-    res.json({ 
-      success: true, 
-      alreadyVoted: v.rows.length > 0, 
-      user: s.rows[0] 
-    });
-  } catch (err) { 
-    res.status(500).json({ error: "Terjadi kesalahan pada server" }); 
-  }
+    res.json({ success: true, alreadyVoted: v.rows.length > 0, user: s.rows[0] });
+  } catch (err) { res.status(500).json({ error: "Server Error" }); }
 });
 
 app.post('/votes', async (req, res) => {
   const { nisn, candidate_id } = req.body;
   try {
-    const checkVote = await pool.query('SELECT * FROM votes WHERE nisn = $1', [nisn]);
-    if (checkVote.rows.length > 0) {
-      return res.status(400).json({ error: "Anda sudah menggunakan hak suara." });
-    }
-
-    await pool.query(
-      'INSERT INTO votes (nisn, candidate_id) VALUES ($1, $2)',
-      [nisn, candidate_id]
-    );
-
-    res.json({ success: true, message: "Suara berhasil dikirim!" });
-  } catch (err) {
-    res.status(500).json({ error: "Gagal menyimpan suara" });
-  }
+    const check = await pool.query('SELECT * FROM votes WHERE nisn = $1', [nisn]);
+    if (check.rows.length > 0) return res.status(400).json({ error: "Sudah memilih" });
+    await pool.query('INSERT INTO votes (nisn, candidate_id) VALUES ($1, $2)', [nisn, candidate_id]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: "Gagal simpan suara" }); }
 });
 
-// --- 6. SERVER STATUS ---
+// --- 5. LAIN-LAIN ---
+app.use('/settings', settingsRoutes);
 app.get('/', (req, res) => res.send("Backend OSIS Berhasil Jalan!"));
-
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
