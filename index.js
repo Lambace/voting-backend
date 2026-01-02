@@ -3,6 +3,7 @@ import cors from 'cors';
 import pool from './db.js';
 import multer from 'multer';
 import path from 'path';
+import settingsRoutes from './routes/settings.js';
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -19,6 +20,7 @@ const upload = multer({ storage });
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); // Limit besar untuk import data banyak
 app.use('/upload', express.static('uploads'));
+app.use('/settings', settingsRoutes);
 
 // --- KANDIDAT (CRUD) ---
 app.get('/candidates', async (req, res) => {
