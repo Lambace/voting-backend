@@ -16,6 +16,14 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({ storage });
+const cors = require('cors');
+
+// Opsi 1: Izinkan SEMUA domain (Paling mudah untuk saat ini)
+app.use(cors({
+  origin: '*', 
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); // Limit besar untuk import data banyak
