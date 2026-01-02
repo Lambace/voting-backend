@@ -86,7 +86,16 @@ app.post('/students/import', upload.single('file'), async (req, res) => {
         [nisn.toString(), name, tingkat?.toString(), kelas?.toString()]
       );
     }
-
+// Ambil semua data siswa untuk ditampilkan di tabel Admin
+app.get('/students', async (req, res) => {
+  try {
+    const resDb = await pool.query('SELECT * FROM students ORDER BY tingkat ASC, kelas ASC, name ASC');
+    res.json(resDb.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Gagal mengambil data siswa" });
+  }
+});
     // Hapus file sementara setelah diproses
     fs.unlinkSync(req.file.path);
 
