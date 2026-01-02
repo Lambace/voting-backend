@@ -3,6 +3,7 @@ import cors from 'cors';
 import pool from './db.js';
 import multer from 'multer';
 import path from 'path';
+import xlsx from 'xlsx';
 import { fileURLToPath } from 'url';
 import settingsRoutes from './routes/settings.js';
 
@@ -10,7 +11,7 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
+const upload = multer({ dest: 'upload/' });
 // --- 1. KONFIGURASI CORS (WAJIB DI ATAS) ---
 app.use(cors({
   origin: '*', // Mengizinkan semua domain (termasuk Vercel baru Anda)
@@ -42,6 +43,38 @@ app.get('/students/download-format', (req, res) => {
       res.status(404).json({ message: "File format tidak ditemukan di folder upload" });
     }
   });
+});
+// rute import file excel
+app.post('/students/import', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Tidak ada file yang diunggah" });
+    }
+
+    // 1. Baca file Excel
+    const workbook = xlsx.readFile(req.file.path);
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const data = xlsx.utils.sheet_to_json(sheet);
+
+    // 2. Loop dan simpan ke database
+    for (const row of data) {
+      const { nisn, name, tingkat, kelas } = row;
+      
+      // Gunakan query UPSERT agar jika NISN sudah ada, data diperbarui (atau gunakan INSERT biasa)
+      await pool.query(
+        `INSERT INTO students (nisn, name, tingkat, kelas) 
+         VALUES ($1, $2, $3, $4) 
+         ON CONFLICT (nisn) DO NOTHING`,
+        [nisn.toString(), name, tingkat, kelas]
+      );
+    }
+
+    res.json({ success: true, message: `${data.length} data siswa berhasil diproses` });
+  } catch (err) {
+    console.error("Gagal import:", err);
+    res.status(500).json({ error: "Terjadi kesalahan saat memproses file" });
+  }
 });
 // --- 2. ROUTES ---
 app.use('/settings', settingsRoutes);
