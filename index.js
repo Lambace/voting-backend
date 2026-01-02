@@ -124,8 +124,44 @@ app.post('/votes', async (req, res) => {
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: "Gagal simpan suara" }); }
 });
+// ----5. UPDATE DATA SISWA
+app.put('/students/:nisn', async (req, res) => {
+  const { nisn } = req.params;
+  const { name, tingkat, kelas } = req.body;
+  try {
+    const result = await pool.query(
+      'UPDATE students SET name = $1, tingkat = $2, kelas = $3 WHERE nisn = $4 RETURNING *',
+      [name, tingkat, kelas, nisn]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ message: "Siswa tidak ditemukan" });
+    res.json({ success: true, message: "Data siswa berhasil diupdate", data: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: "Gagal update data" });
+  }
+});
 
-// --- 5. LAIN-LAIN ---
+// -----6. HAPUS DATA SISWA
+app.delete('/students/:nisn', async (req, res) => {
+  const { nisn } = req.params;
+  try {
+    const result = await pool.query('DELETE FROM students WHERE nisn = $1 RETURNING *', [nisn]);
+    if (result.rows.length === 0) return res.status(404).json({ message: "Siswa tidak ditemukan" });
+    res.json({ success: true, message: "Siswa berhasil dihapus" });
+  } catch (err) {
+    res.status(500).json({ error: "Gagal menghapus data" });
+  }
+});
+
+// HAPUS SEMUA SISWA (Opsional - untuk reset data)
+app.delete('/students-all', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM students');
+    res.json({ success: true, message: "Semua data siswa berhasil dikosongkan" });
+  } catch (err) {
+    res.status(500).json({ error: "Gagal mengosongkan data" });
+  }
+});
+// --- 7. LAIN-LAIN ---
 app.use('/settings', settingsRoutes);
 app.get('/', (req, res) => res.send("Backend OSIS Berhasil Jalan!"));
 
