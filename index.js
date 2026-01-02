@@ -8,18 +8,17 @@ import settingsRoutes from './routes/settings.js';
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// 1. PINDAHKAN CORS KE PALING ATAS
+// --- 1. KONFIGURASI CORS (WAJIB DI ATAS) ---
 app.use(cors({
-  origin: '*', // Mengizinkan akses dari domain Vercel mana pun
+  origin: '*', // Mengizinkan semua domain (termasuk Vercel baru Anda)
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// 2. Middleware lainnya
 app.use(express.json({ limit: '50mb' }));
 app.use('/upload', express.static('uploads'));
 
-// Konfigurasi Multer
+// Konfigurasi Multer untuk Foto
 const storage = multer.diskStorage({
   destination: 'uploads/',
   filename: (req, file, cb) => {
@@ -28,10 +27,10 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// 3. Rute API
+// --- 2. ROUTES ---
 app.use('/settings', settingsRoutes);
 
-// --- KANDIDAT ---
+// Ambil kandidat (Ini yang bikin stuck "Memuat Kandidat")
 app.get('/candidates', async (req, res) => {
   try {
     const resDb = await pool.query('SELECT * FROM candidates ORDER BY id ASC');
@@ -41,9 +40,7 @@ app.get('/candidates', async (req, res) => {
   }
 });
 
-// ... (Sisa kode rute POST, PUT, DELETE kandidat, siswa, dan voting tetap sama)
-// Pastikan copy sisa kode rute kamu di bawah sini sampai app.listen ...
-
+// Login pakai NISN
 app.post('/login', async (req, res) => {
   const { nisn } = req.body;
   try {
@@ -54,15 +51,9 @@ app.post('/login', async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Error" }); }
 });
 
-app.post('/votes', async (req, res) => {
-  const { nisn, candidate_id } = req.body;
-  try {
-    await pool.query('INSERT INTO votes (nisn, candidate_id) VALUES ($1, $2)', [nisn, candidate_id]);
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: "Sudah memilih" }); }
-});
+// ... (Masukkan kembali rute post/put/delete kandidat dan siswa yang sebelumnya di sini) ...
 
-// Tambahkan rute ini untuk testing manual
-app.get('/', (req, res) => res.send("Backend OSIS Running!"));
+// Rute dasar untuk cek jika backend hidup
+app.get('/', (req, res) => res.send("Backend OSIS Berhasil Jalan!"));
 
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));
