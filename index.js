@@ -96,6 +96,7 @@ app.post('/students/import', upload.single('file'), async (req, res) => {
 });
 
 // UPDATE DATA SISWA
+// EDIT SISWA
 app.put('/students/:nisn', async (req, res) => {
   const { nisn } = req.params;
   const { name, tingkat, kelas } = req.body;
@@ -105,21 +106,20 @@ app.put('/students/:nisn', async (req, res) => {
       [name, tingkat, kelas, nisn]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: "Siswa tidak ditemukan" });
-    res.json({ success: true, message: "Data siswa berhasil diupdate", data: result.rows[0] });
+    res.json({ success: true, data: result.rows[0] });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Gagal update data" });
   }
 });
-
-// HAPUS DATA SISWA
+// HAPUS SISWA
 app.delete('/students/:nisn', async (req, res) => {
   const { nisn } = req.params;
   try {
-    const result = await pool.query('DELETE FROM students WHERE nisn = $1 RETURNING *', [nisn]);
-    if (result.rows.length === 0) return res.status(404).json({ message: "Siswa tidak ditemukan" });
-    res.json({ success: true });
+    const result = await pool.query('DELETE FROM students WHERE nisn = $1', [nisn]);
+    res.json({ success: true, message: "Berhasil dihapus" });
   } catch (err) {
-    res.status(500).json({ error: "Gagal menghapus data" });
+    res.status(500).json({ error: "Gagal menghapus" });
   }
 });
 
