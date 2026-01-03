@@ -87,29 +87,28 @@ router.delete("/", async (req, res) => {
   }
 });
 
-// ✅ Import siswa dari Excel
+// ✅ Import siswa dari Excel (Backend)
 router.post("/import", upload.single("file"), async (req, res) => {
   try {
-    console.log("File diterima:", req.file);
     const workbook = xlsx.readFile(req.file.path);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = xlsx.utils.sheet_to_json(sheet);
 
-    console.log("Rows dari Excel:", rows);
-
     for (const row of rows) {
+      // Pastikan nama kolom di Excel (nisn, name, tingkat, kelas) 
+      // sama dengan variabel di bawah ini
       const { nisn, name, tingkat, kelas } = row;
       await pool.query(
-        "INSERT INTO students (nisn, name, tingkat, kelas) VALUES ($1, $2, $3, $4)",
+        "INSERT INTO students (nisn, name, tingkat, kelas) VALUES ($1, $2, $3, $4) ON CONFLICT (nisn) DO NOTHING",
         [nisn, name, tingkat, kelas]
       );
     }
     res.json({ message: "Data siswa berhasil diimport" });
   } catch (err) {
-    console.error("Error import:", err);
     res.status(500).json({ error: "Gagal import siswa" });
   }
 });
+
 
 // ✅ Download template Excel
 router.get("/download", async (req, res) => {
