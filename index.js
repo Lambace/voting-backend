@@ -190,15 +190,18 @@ app.post('/votes', async (req, res) => {
 
 // TAMBAH KANDIDAT
 app.post('/candidates', async (req, res) => {
-  const { name, vision, mission, image_url } = req.body;
+  // Ambil data dari body (photo dikirim dari frontend)
+  const { name, photo, vision, mission } = req.body;
+  
   try {
     const result = await pool.query(
-      'INSERT INTO candidates (name, vision, mission, image_url) VALUES ($1, $2, $3, $4) RETURNING *',
-      [name, vision, mission, image_url]
+      'INSERT INTO candidates (name, photo, vision, mission) VALUES ($1, $2, $3, $4) RETURNING *',
+      [name, photo, vision, mission]
     );
     res.json({ success: true, data: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: "Gagal menambah kandidat" });
+    console.error("Error Database:", err);
+    res.status(500).json({ error: "Gagal menyimpan ke tabel candidates" });
   }
 });
 
