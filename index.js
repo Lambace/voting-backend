@@ -27,7 +27,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Menyediakan akses publik ke folder upload
 app.use('/upload', express.static(path.join(__dirname, 'upload')));
 
-// --- 2. KONFIGURASI MULTER ---
+// --- A. KONFIGURASI MULTER ---
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = path.join(__dirname, 'upload');
@@ -41,16 +41,67 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-// --- 3. RUTE SISWA ---
+// --- B. RUTE SISWA ---
 
-// AMBIL SEMUA SISWA
+// 1. AMBIL SEMUA SISWA
 app.get('/students', async (req, res) => {
   try {
     const resDb = await pool.query('SELECT * FROM students ORDER BY tingkat ASC, kelas ASC, name ASC');
     res.json(resDb.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Gagal mengambil data siswa" });
+    res.status(500).json({ error: "Gagal mengambil data" });
+  }
+});
+
+// 2. TAMBAH SISWA MANUAL (BARU)
+app.post('/students', async (req, res) => {
+  const { nisn, name, tingkat, kelas } = req.body;
+  try {
+    const result = await pool.query(
+      'INSERT INTO students (nisn, name, tingkat, kelas) VALUES ($1, $2, $3, $4) RETURNING *',
+      [nisn, name, tingkat, kelas]
+    );
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ message: "NISN sudah terdaftar!" });
+    res.status(500).json({ error: "Gagal menambah data" });
+  }
+});
+
+// 3. UPDATE SISWA (Menggunakan NISN)
+app.put('/students/:nisn', async (req, res) => {
+  const { nisn } = req.params;
+  const { name, tingkat, kelas } = req.body;
+  try {
+    const result = await pool.query(
+      'UPDATE students SET name = $1, tingkat = $2, kelas = $3 WHERE nisn = $4 RETURNING *',
+      [name, tingkat, kelas, nisn]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ message: "Siswa tidak ditemukan" });
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: "Gagal update" });
+  }
+});
+
+// 4. HAPUS SISWA (Menggunakan NISN)
+app.delete('/students/:nisn', async (req, res) => {
+  const { nisn } = req.params;
+  try {
+    await pool.query('DELETE FROM students WHERE nisn = $1', [nisn]);
+    res.json({ success: true, message: "Berhasil dihapus" });
+  } catch (err) {
+    res.status(500).json({ error: "Gagal menghapus" });
+  }
+});
+
+// 5. RESET SEMUA SISWA (BARU)
+app.delete('/students-reset-all', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM students');
+    res.json({ success: true, message: "Semua data direset" });
+  } catch (err) {
+    res.status(500).json({ error: "Gagal reset" });
   }
 });
 
@@ -96,35 +147,9 @@ app.post('/students/import', upload.single('file'), async (req, res) => {
   }
 });
 
-// UPDATE DATA SISWA
-// EDIT SISWA
-app.put('/students/:nisn', async (req, res) => {
-  const { nisn } = req.params;
-  const { name, tingkat, kelas } = req.body;
-  try {
-    const result = await pool.query(
-      'UPDATE students SET name = $1, tingkat = $2, kelas = $3 WHERE nisn = $4 RETURNING *',
-      [name, tingkat, kelas, nisn]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ message: "Siswa tidak ditemukan" });
-    res.json({ success: true, data: result.rows[0] });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Gagal update data" });
-  }
-});
-// HAPUS SISWA
-app.delete('/students/:nisn', async (req, res) => {
-  const { nisn } = req.params;
-  try {
-    const result = await pool.query('DELETE FROM students WHERE nisn = $1', [nisn]);
-    res.json({ success: true, message: "Berhasil dihapus" });
-  } catch (err) {
-    res.status(500).json({ error: "Gagal menghapus" });
-  }
-});
 
-// --- 4. RUTE KANDIDAT & VOTING ---
+
+// --- C. RUTE KANDIDAT & VOTING ---
 app.get('/candidates', async (req, res) => {
   try {
     const resDb = await pool.query('SELECT * FROM candidates ORDER BY id ASC');
