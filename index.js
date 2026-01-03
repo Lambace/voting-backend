@@ -7,6 +7,7 @@ import xlsx from 'xlsx';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import settingsRoutes from './routes/settings.js';
+import resultsRoutes from "./routes/resultsRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -36,6 +37,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Menyediakan akses publik ke folder upload
 app.use('/upload', express.static(path.join(__dirname, 'upload')));
+app.use("/results", resultsRoutes);
 
 // --- 2. KONFIGURASI MULTER ---
 const storage = multer.diskStorage({
