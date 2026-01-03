@@ -188,6 +188,31 @@ app.post('/votes', async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Gagal simpan suara" }); }
 });
 
+// TAMBAH KANDIDAT
+app.post('/candidates', async (req, res) => {
+  const { name, vision, mission, image_url } = req.body;
+  try {
+    const result = await pool.query(
+      'INSERT INTO candidates (name, vision, mission, image_url) VALUES ($1, $2, $3, $4) RETURNING *',
+      [name, vision, mission, image_url]
+    );
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: "Gagal menambah kandidat" });
+  }
+});
+
+// HAPUS KANDIDAT
+app.delete('/candidates/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM candidates WHERE id = $1', [id]);
+    res.json({ success: true, message: "Kandidat dihapus" });
+  } catch (err) {
+    res.status(500).json({ error: "Gagal menghapus kandidat" });
+  }
+});
+
 // --- 5. LAIN-LAIN ---
 app.use('/settings', settingsRoutes);
 app.get('/', (req, res) => res.send("Backend OSIS Berhasil Jalan!"));
