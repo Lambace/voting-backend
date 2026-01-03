@@ -15,7 +15,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // --- 1. MIDDLEWARE & CORS ---
-// Gunakan origin '*' untuk mengizinkan Vercel mengakses Railway
 app.use(cors({
   origin: '*', 
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -35,7 +34,6 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Menyediakan akses publik ke folder upload
 app.use('/upload', express.static(path.join(__dirname, 'upload')));
 app.use("/results", resultsRoutes);
 
@@ -55,7 +53,6 @@ const upload = multer({ storage: storage });
 
 // --- 3. RUTE SISWA ---
 
-// AMBIL SEMUA SISWA
 app.get('/students', async (req, res) => {
   try {
     const resDb = await pool.query('SELECT * FROM students ORDER BY tingkat ASC, kelas ASC, name ASC');
@@ -66,7 +63,6 @@ app.get('/students', async (req, res) => {
   }
 });
 
-// TAMBAH SISWA MANUAL
 app.post('/students', async (req, res) => {
   const { nisn, name, tingkat, kelas } = req.body;
   try {
@@ -81,7 +77,6 @@ app.post('/students', async (req, res) => {
   }
 });
 
-// UPDATE DATA SISWA (Berdasarkan NISN)
 app.put('/students/:nisn', async (req, res) => {
   const { nisn } = req.params;
   const { name, tingkat, kelas } = req.body;
@@ -98,18 +93,16 @@ app.put('/students/:nisn', async (req, res) => {
   }
 });
 
-// HAPUS SISWA (Berdasarkan NISN)
 app.delete('/students/:nisn', async (req, res) => {
   const { nisn } = req.params;
   try {
-    const result = await pool.query('DELETE FROM students WHERE nisn = $1', [nisn]);
+    await pool.query('DELETE FROM students WHERE nisn = $1', [nisn]);
     res.json({ success: true, message: "Berhasil dihapus" });
   } catch (err) {
     res.status(500).json({ error: "Gagal menghapus" });
   }
 });
 
-// RESET SEMUA SISWA
 app.delete('/students-reset-all', async (req, res) => {
   try {
     await pool.query('DELETE FROM students');
@@ -119,11 +112,9 @@ app.delete('/students-reset-all', async (req, res) => {
   }
 });
 
-// IMPORT EXCEL
 app.post('/students/import', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "File tidak ditemukan" });
-
     const workbook = xlsx.readFile(req.file.path);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const data = xlsx.utils.sheet_to_json(sheet);
@@ -133,9 +124,7 @@ app.post('/students/import', upload.single('file'), async (req, res) => {
       const name = row.name || row.Name || row.nama || row.Nama;
       const tingkat = row.tingkat || row.Tingkat || row.kelas_angka;
       const kelas = row.kelas || row.Kelas;
-
       if (!nisn || !name) continue;
-
       await pool.query(
         `INSERT INTO students (nisn, name, tingkat, kelas) 
          VALUES ($1, $2, $3, $4) 
@@ -143,16 +132,13 @@ app.post('/students/import', upload.single('file'), async (req, res) => {
         [nisn.toString(), name, tingkat?.toString(), kelas?.toString()]
       );
     }
-
     if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     res.json({ success: true, message: "Import berhasil" });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: "Gagal memproses file" });
   }
 });
 
-// DOWNLOAD FORMAT EXCEL
 app.get('/students/download-format', (req, res) => {
   const filePath = path.join(__dirname, 'upload', 'student-format.xlsx');
   if (fs.existsSync(filePath)) {
@@ -163,11 +149,29 @@ app.get('/students/download-format', (req, res) => {
 });
 
 // --- 4. RUTE KANDIDAT & VOTING ---
+
 app.get('/candidates', async (req, res) => {
   try {
     const resDb = await pool.query('SELECT * FROM candidates ORDER BY id ASC');
     res.json(resDb.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ✅ UPDATE KANDIDAT (Fitur Edit)
+app.put('/candidates/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, photo, vision, mission } = req.body;
+  try {
+    const result = await pool.query(
+      'UPDATE candidates SET name = $1, photo = $2, vision = $3, mission = $4 WHERE id = $5 RETURNING *',
+      [name, photo, vision, mission, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ message: "Kandidat tidak ditemukan" });
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Gagal memperbarui data kandidat" });
+  }
 });
 
 app.post('/login', async (req, res) => {
@@ -190,11 +194,8 @@ app.post('/votes', async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Gagal simpan suara" }); }
 });
 
-// TAMBAH KANDIDAT
 app.post('/candidates', async (req, res) => {
-  // Ambil data dari body (photo dikirim dari frontend)
   const { name, photo, vision, mission } = req.body;
-  
   try {
     const result = await pool.query(
       'INSERT INTO candidates (name, photo, vision, mission) VALUES ($1, $2, $3, $4) RETURNING *',
@@ -202,18 +203,19 @@ app.post('/candidates', async (req, res) => {
     );
     res.json({ success: true, data: result.rows[0] });
   } catch (err) {
-    console.error("Error Database:", err);
     res.status(500).json({ error: "Gagal menyimpan ke tabel candidates" });
   }
 });
 
-// HAPUS KANDIDAT
 app.delete('/candidates/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    await pool.query('DELETE FROM candidates WHERE id = $1', [id]);
-    res.json({ success: true, message: "Kandidat dihapus" });
+    // Opsional: Hapus suara terkait kandidat ini dulu jika database menggunakan constraint strict
+    await pool.query('DELETE FROM votes WHERE candidate_id = $1', [id]);
+    const result = await pool.query('DELETE FROM candidates WHERE id = $1', [id]);
+    res.json({ success: true, message: "Kandidat berhasil dihapus" });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Gagal menghapus kandidat" });
   }
 });
