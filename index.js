@@ -204,4 +204,34 @@ app.post('/votes', async (req, res) => {
 app.use('/settings', settingsRoutes);
 app.get('/', (req, res) => res.send("Backend OSIS Berhasil Jalan!"));
 
+// 🛠️ RUTE DARURAT UNTUK SETUP DATABASE (Jalankan sekali saja)
+app.get('/setup-db', async (req, res) => {
+    try {
+        // 1. Tambahkan kolom nomor_urut jika belum ada
+        await pool.query(`ALTER TABLE candidates ADD COLUMN IF NOT EXISTS nomor_urut VARCHAR(10)`);
+
+        // 2. Atur agar saat Siswa dihapus, Suaranya juga ikut terhapus (CASCADE)
+        await pool.query(`
+            ALTER TABLE votes 
+            DROP CONSTRAINT IF EXISTS votes_nisn_fkey,
+            ADD CONSTRAINT votes_nisn_fkey 
+            FOREIGN KEY (nisn) REFERENCES students(nisn) 
+            ON DELETE CASCADE
+        `);
+
+        // 3. Atur agar saat Kandidat dihapus, Suaranya juga ikut terhapus (CASCADE)
+        await pool.query(`
+            ALTER TABLE votes 
+            DROP CONSTRAINT IF EXISTS votes_candidate_id_fkey,
+            ADD CONSTRAINT votes_candidate_id_fkey 
+            FOREIGN KEY (candidate_id) REFERENCES candidates(id) 
+            ON DELETE CASCADE
+        `);
+
+        res.send("✅ Setup Database Berhasil! Sekarang fitur Hapus & Reset akan lancar.");
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("❌ Gagal Setup Database: " + err.message);
+    }
+});
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
