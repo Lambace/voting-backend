@@ -93,6 +93,18 @@ app.delete('/students/:nisn', async (req, res) => {
     }
 });
 
+// ✅ RESET SEMUA DATA (Siswa & Votes)
+app.delete('/students-reset-all', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM votes'); // Hapus suara dulu karena ada foreign key
+        await pool.query('DELETE FROM students'); // Baru hapus semua siswa
+        res.json({ success: true, message: "Semua data berhasil dikosongkan" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Gagal mereset data" });
+    }
+});
+
 // ✅ DOWNLOAD FORMAT EXCEL
 app.get('/students/download-format', (req, res) => {
     const data = [["nisn", "name", "tingkat", "kelas"]];
