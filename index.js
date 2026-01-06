@@ -24,11 +24,16 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Folder statis untuk akses file (PENTING: Agar Logo dan Foto bisa tampil di web)
+// Membuat folder upload jika belum ada agar tidak error saat start
+const folders = ['upload/candidates', 'upload/logo', 'upload/temp'];
+folders.forEach(dir => {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+});
+
 app.use('/upload', express.static(path.join(__dirname, 'upload')));
 app.use("/results", resultsRoutes);
 
-// --- 2. KONFIGURASI MULTER (WAJIB diletakkan SEBELUM rute-rute) ---
+// --- 2. KONFIGURASI MULTER ---
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         let dir = 'upload/temp';
@@ -37,18 +42,19 @@ const storage = multer.diskStorage({
         } else if (file.fieldname === 'logo') { 
             dir = 'upload/logo';
         }
-        
-        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
     },
     filename: (req, file, cb) => {
         cb(null, Date.now() + '-' + file.originalname.replace(/\s/g, '_'));
     }
 });
-const upload = multer({ storage: storage }); // Sekarang variabel 'upload' sudah siap
+const upload = multer({ storage: storage });
 
-// --- 3. RUTE SISWA ---
+// --- 3. EXPORT UPLOAD UNTUK ROUTE LAIN ---
+// Ini penting agar file routes/settings.js bisa menggunakan 'upload' yang sama
+app.set('upload', upload);
 
+// --- 4. RUTE SISWA ---
 app.get('/students', async (req, res) => {
     try {
         const query = `
@@ -78,8 +84,7 @@ app.post('/students/import', upload.single('file'), async (req, res) => {
     } catch (err) { res.status(500).json({ error: "Gagal import excel" }); }
 });
 
-// --- 4. RUTE KANDIDAT ---
-
+// --- 5. RUTE KANDIDAT ---
 app.post('/candidates', upload.single('photo'), async (req, res) => {
     const { name, vision, mission, nomor_urut } = req.body;
     const photoPath = req.file ? `/upload/candidates/${req.file.filename}` : null;
@@ -104,9 +109,7 @@ app.get('/candidates', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// --- 5. RUTE SETTINGS & AUTH ---
-
-// Gunakan settingsRoutes yang sudah kita perbaiki tadi
+// --- 6. SETTINGS & AUTH ---
 app.use('/settings', settingsRoutes);
 
 app.post('/login', async (req, res) => {
@@ -121,7 +124,6 @@ app.post('/login', async (req, res) => {
 
 app.get('/', (req, res) => res.send("Backend OSIS Berhasil Jalan!"));
 
-// SETUP DATABASE (Jalankan sekali di browser setelah deploy)
 app.get('/setup-db', async (req, res) => {
     try {
         await pool.query(`ALTER TABLE candidates ADD COLUMN IF NOT EXISTS nomor_urut VARCHAR(10)`);
