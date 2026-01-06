@@ -24,17 +24,17 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Folder untuk upload foto kandidat
+// Folder statis untuk akses file (PENTING: Agar Logo dan Foto bisa tampil di web)
 app.use('/upload', express.static(path.join(__dirname, 'upload')));
 app.use("/results", resultsRoutes);
 
-// --- 2. KONFIGURASI MULTER (Untuk Foto & Excel) ---
+// --- 2. KONFIGURASI MULTER (WAJIB diletakkan SEBELUM rute-rute) ---
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         let dir = 'upload/temp';
         if (file.fieldname === 'photo') {
             dir = 'upload/candidates';
-        } else if (file.fieldname === 'logo') { // Tambahkan kondisi untuk logo
+        } else if (file.fieldname === 'logo') { 
             dir = 'upload/logo';
         }
         
@@ -45,91 +45,21 @@ const storage = multer.diskStorage({
         cb(null, Date.now() + '-' + file.originalname.replace(/\s/g, '_'));
     }
 });
+const upload = multer({ storage: storage }); // Sekarang variabel 'upload' sudah siap
 
-// --- 3. RUTE SISWA (CRUD, IMPORT, DOWNLOAD) ---
+// --- 3. RUTE SISWA ---
 
-// ✅ GET ALL STUDENTS
 app.get('/students', async (req, res) => {
     try {
         const query = `
-            SELECT 
-                s.*, 
-                EXISTS(SELECT 1 FROM votes v WHERE v.nisn = s.nisn) AS voted
-            FROM students s
-            ORDER BY s.name ASC
+            SELECT s.*, EXISTS(SELECT 1 FROM votes v WHERE v.nisn = s.nisn) AS voted
+            FROM students s ORDER BY s.name ASC
         `;
         const resDb = await pool.query(query);
         res.json(resDb.rows);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ✅ ADD STUDENT (Manual)
-app.post('/students', async (req, res) => {
-    const { nisn, name, tingkat, kelas } = req.body;
-    try {
-        const result = await pool.query(
-            'INSERT INTO students (nisn, name, tingkat, kelas) VALUES ($1, $2, $3, $4) RETURNING *',
-            [nisn, name, tingkat, kelas]
-        );
-        res.status(201).json(result.rows[0]);
-    } catch (err) {
-        res.status(500).json({ error: "NISN sudah ada atau data tidak valid" });
-    }
-});
-
-// ✅ UPDATE STUDENT
-app.put('/students/:nisn', async (req, res) => {
-    const { nisn } = req.params;
-    const { name, tingkat, kelas } = req.body;
-    try {
-        const result = await pool.query(
-            'UPDATE students SET name = $1, tingkat = $2, kelas = $3 WHERE nisn = $4 RETURNING *',
-            [name, tingkat, kelas, nisn]
-        );
-        res.json(result.rows[0]);
-    } catch (err) {
-        res.status(500).json({ error: "Gagal update data siswa" });
-    }
-});
-
-// ✅ DELETE STUDENT
-app.delete('/students/:nisn', async (req, res) => {
-    const { nisn } = req.params;
-    try {
-        await pool.query('DELETE FROM students WHERE nisn = $1', [nisn]);
-        res.json({ success: true, message: "Siswa berhasil dihapus" });
-    } catch (err) {
-        res.status(500).json({ error: "Gagal menghapus siswa" });
-    }
-});
-
-// ✅ RESET SEMUA DATA (Siswa & Votes)
-app.delete('/students-reset-all', async (req, res) => {
-    try {
-        await pool.query('DELETE FROM votes'); // Hapus suara dulu karena ada foreign key
-        await pool.query('DELETE FROM students'); // Baru hapus semua siswa
-        res.json({ success: true, message: "Semua data berhasil dikosongkan" });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Gagal mereset data" });
-    }
-});
-
-// ✅ DOWNLOAD FORMAT EXCEL
-app.get('/students/download-format', (req, res) => {
-    const data = [["nisn", "name", "tingkat", "kelas"]];
-    const ws = xlsx.utils.aoa_to_sheet(data);
-    const wb = xlsx.utils.book_new();
-    xlsx.utils.book_append_sheet(wb, ws, "Format");
-    const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
-    res.setHeader('Content-Disposition', 'attachment; filename=format_siswa.xlsx');
-    res.type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.send(buf);
-});
-
-// ✅ IMPORT STUDENTS FROM EXCEL
 app.post('/students/import', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "File tidak ditemukan" });
@@ -145,31 +75,10 @@ app.post('/students/import', upload.single('file'), async (req, res) => {
         }
         fs.unlinkSync(req.file.path);
         res.json({ success: true, message: `${data.length} data berhasil diimport` });
-    } catch (err) {
-        res.status(500).json({ error: "Gagal memproses file excel" });
-    }
+    } catch (err) { res.status(500).json({ error: "Gagal import excel" }); }
 });
 
 // --- 4. RUTE KANDIDAT ---
-
-app.get('/candidates', async (req, res) => {
-    try {
-        // Query ini melakukan LEFT JOIN untuk menghitung jumlah suara per kandidat
-        const query = `
-            SELECT 
-                c.*, 
-                COUNT(v.id)::int AS votes_count 
-            FROM candidates c
-            LEFT JOIN votes v ON c.id = v.candidate_id
-            GROUP BY c.id
-            ORDER BY c.nomor_urut ASC
-        `;
-        const resDb = await pool.query(query);
-        res.json(resDb.rows);
-    } catch (err) { 
-        res.status(500).json({ error: err.message }); 
-    }
-});
 
 app.post('/candidates', upload.single('photo'), async (req, res) => {
     const { name, vision, mission, nomor_urut } = req.body;
@@ -183,29 +92,22 @@ app.post('/candidates', upload.single('photo'), async (req, res) => {
     } catch (err) { res.status(500).json({ error: "Gagal simpan kandidat" }); }
 });
 
-app.put('/candidates/:id', upload.single('photo'), async (req, res) => {
-    const { id } = req.params;
-    const { name, vision, mission, nomor_urut } = req.body;
-    let photoPath = req.body.photo; 
-    if (req.file) photoPath = `/upload/candidates/${req.file.filename}`;
+app.get('/candidates', async (req, res) => {
     try {
-        const result = await pool.query(
-            'UPDATE candidates SET name = $1, photo = $2, vision = $3, mission = $4, nomor_urut = $5 WHERE id = $6 RETURNING *',
-            [name, photoPath, vision, mission, nomor_urut, id]
-        );
-        res.json(result.rows[0]);
-    } catch (err) { res.status(500).json({ error: "Gagal update kandidat" }); }
+        const query = `
+            SELECT c.*, COUNT(v.id)::int AS votes_count 
+            FROM candidates c LEFT JOIN votes v ON c.id = v.candidate_id
+            GROUP BY c.id ORDER BY c.nomor_urut ASC
+        `;
+        const resDb = await pool.query(query);
+        res.json(resDb.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.delete('/candidates/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        await pool.query('DELETE FROM candidates WHERE id = $1', [id]);
-        res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: "Gagal hapus" }); }
-});
+// --- 5. RUTE SETTINGS & AUTH ---
 
-// --- 5. RUTE AUTH & VOTING ---
+// Gunakan settingsRoutes yang sudah kita perbaiki tadi
+app.use('/settings', settingsRoutes);
 
 app.post('/login', async (req, res) => {
     const { nisn } = req.body;
@@ -217,45 +119,15 @@ app.post('/login', async (req, res) => {
     } catch (err) { res.status(500).json({ error: "Server Error" }); }
 });
 
-app.post('/votes', async (req, res) => {
-    const { nisn, candidate_id } = req.body;
-    try {
-        await pool.query('INSERT INTO votes (nisn, candidate_id) VALUES ($1, $2)', [nisn, candidate_id]);
-        res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: "Gagal simpan suara" }); }
-});
-
-app.use('/settings', settingsRoutes);
 app.get('/', (req, res) => res.send("Backend OSIS Berhasil Jalan!"));
 
-// 🛠️ RUTE DARURAT UNTUK SETUP DATABASE (Jalankan sekali saja)
+// SETUP DATABASE (Jalankan sekali di browser setelah deploy)
 app.get('/setup-db', async (req, res) => {
     try {
-        // 1. Tambahkan kolom nomor_urut jika belum ada
         await pool.query(`ALTER TABLE candidates ADD COLUMN IF NOT EXISTS nomor_urut VARCHAR(10)`);
-
-        // 2. Atur agar saat Siswa dihapus, Suaranya juga ikut terhapus (CASCADE)
-        await pool.query(`
-            ALTER TABLE votes 
-            DROP CONSTRAINT IF EXISTS votes_nisn_fkey,
-            ADD CONSTRAINT votes_nisn_fkey 
-            FOREIGN KEY (nisn) REFERENCES students(nisn) 
-            ON DELETE CASCADE
-        `);
-
-        // 3. Atur agar saat Kandidat dihapus, Suaranya juga ikut terhapus (CASCADE)
-        await pool.query(`
-            ALTER TABLE votes 
-            DROP CONSTRAINT IF EXISTS votes_candidate_id_fkey,
-            ADD CONSTRAINT votes_candidate_id_fkey 
-            FOREIGN KEY (candidate_id) REFERENCES candidates(id) 
-            ON DELETE CASCADE
-        `);
-
-        res.send("✅ Setup Database Berhasil! Sekarang fitur Hapus & Reset akan lancar.");
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("❌ Gagal Setup Database: " + err.message);
-    }
+        await pool.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS logo_url TEXT`);
+        res.send("✅ Setup Database Berhasil!");
+    } catch (err) { res.status(500).send("❌ Gagal Setup: " + err.message); }
 });
+
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
