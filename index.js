@@ -31,7 +31,13 @@ app.use("/results", resultsRoutes);
 // --- 2. KONFIGURASI MULTER (Untuk Foto & Excel) ---
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const dir = file.fieldname === 'photo' ? 'upload/candidates' : 'upload/temp';
+        let dir = 'upload/temp';
+        if (file.fieldname === 'photo') {
+            dir = 'upload/candidates';
+        } else if (file.fieldname === 'logo') { // Tambahkan kondisi untuk logo
+            dir = 'upload/logo';
+        }
+        
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
     },
@@ -39,17 +45,23 @@ const storage = multer.diskStorage({
         cb(null, Date.now() + '-' + file.originalname.replace(/\s/g, '_'));
     }
 });
-const upload = multer({ storage: storage });
 
 // --- 3. RUTE SISWA (CRUD, IMPORT, DOWNLOAD) ---
 
 // ✅ GET ALL STUDENTS
 app.get('/students', async (req, res) => {
     try {
-        const resDb = await pool.query('SELECT * FROM students ORDER BY tingkat ASC, kelas ASC, name ASC');
+        const query = `
+            SELECT 
+                s.*, 
+                EXISTS(SELECT 1 FROM votes v WHERE v.nisn = s.nisn) AS voted
+            FROM students s
+            ORDER BY s.name ASC
+        `;
+        const resDb = await pool.query(query);
         res.json(resDb.rows);
     } catch (err) {
-        res.status(500).json({ error: "Gagal mengambil data siswa" });
+        res.status(500).json({ error: err.message });
     }
 });
 
@@ -142,9 +154,21 @@ app.post('/students/import', upload.single('file'), async (req, res) => {
 
 app.get('/candidates', async (req, res) => {
     try {
-        const resDb = await pool.query('SELECT * FROM candidates ORDER BY nomor_urut ASC');
+        // Query ini melakukan LEFT JOIN untuk menghitung jumlah suara per kandidat
+        const query = `
+            SELECT 
+                c.*, 
+                COUNT(v.id)::int AS votes_count 
+            FROM candidates c
+            LEFT JOIN votes v ON c.id = v.candidate_id
+            GROUP BY c.id
+            ORDER BY c.nomor_urut ASC
+        `;
+        const resDb = await pool.query(query);
         res.json(resDb.rows);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) { 
+        res.status(500).json({ error: err.message }); 
+    }
 });
 
 app.post('/candidates', upload.single('photo'), async (req, res) => {
