@@ -96,7 +96,23 @@ app.post('/candidates', upload.single('photo'), async (req, res) => {
         res.json(result.rows[0]);
     } catch (err) { res.status(500).json({ error: "Gagal simpan kandidat" }); }
 });
-
+// --- RUTE DELETE KANDIDAT ---
+app.delete('/candidates/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        // Hapus data kandidat berdasarkan ID
+        const result = await pool.query('DELETE FROM candidates WHERE id = $1', [id]);
+        
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "Kandidat tidak ditemukan" });
+        }
+        
+        res.json({ success: true, message: "Kandidat berhasil dihapus" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Gagal menghapus kandidat dari database" });
+    }
+});
 app.get('/candidates', async (req, res) => {
     try {
         const query = `
