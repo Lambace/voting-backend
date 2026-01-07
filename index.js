@@ -142,11 +142,20 @@ app.post('/students/import', upload.single('file'), async (req, res) => {
 
 app.get('/candidates', async (req, res) => {
     try {
-        const resDb = await pool.query('SELECT * FROM candidates ORDER BY nomor_urut ASC');
+        const resDb = await pool.query(`
+            SELECT 
+                c.*, 
+                COALESCE(count(v.id), 0)::int as votes_count 
+            FROM candidates c 
+            LEFT JOIN votes v ON c.id = v.candidate_id 
+            GROUP BY c.id 
+            ORDER BY c.nomor_urut ASC
+        `);
         res.json(resDb.rows);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) { 
+        res.status(500).json({ error: err.message }); 
+    }
 });
-
 app.post('/candidates', upload.single('photo'), async (req, res) => {
     const { name, vision, mission, nomor_urut } = req.body;
     const photoPath = req.file ? `/upload/candidates/${req.file.filename}` : null;
