@@ -139,21 +139,19 @@ app.post('/students/import', upload.single('file'), async (req, res) => {
 });
 
 // --- 4. RUTE KANDIDAT ---
-
 app.get('/candidates', async (req, res) => {
     try {
-        const resDb = await pool.query(`
+        const query = `
             SELECT 
                 c.*, 
-                COALESCE(count(v.id), 0)::int as votes_count 
-            FROM candidates c 
-            LEFT JOIN votes v ON c.id = v.candidate_id 
-            GROUP BY c.id 
+                (SELECT COUNT(*)::int FROM votes v WHERE v.candidate_id = c.id) AS votes_count
+            FROM candidates c
             ORDER BY c.nomor_urut ASC
-        `);
-        res.json(resDb.rows);
-    } catch (err) { 
-        res.status(500).json({ error: err.message }); 
+        `;
+        const result = await pool.query(query);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 app.post('/candidates', upload.single('photo'), async (req, res) => {
