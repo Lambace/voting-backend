@@ -204,10 +204,47 @@ app.post('/login', async (req, res) => {
 
 app.post('/votes', async (req, res) => {
     const { nisn, candidate_id } = req.body;
+
+    // Validasi input awal
+    if (!nisn || !candidate_id) {
+        return res.status(400).json({ error: "NISN dan ID Kandidat wajib diisi" });
+    }
+
     try {
-        await pool.query('INSERT INTO votes (nisn, candidate_id) VALUES ($1, $2)', [nisn, candidate_id]);
-        res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: "Gagal simpan suara" }); }
+        // 1. Cek apakah NISN ini benar-benar ada di daftar siswa
+        const studentCheck = await pool.query('SELECT nisn FROM students WHERE nisn = $1', [nisn]);
+        if (studentCheck.rows.length === 0) {
+            return res.status(404).json({ error: "NISN tidak terdaftar sebagai pemilih" });
+        }
+
+        // 2. Cek apakah siswa ini sudah pernah memilih (mencegah voting ganda)
+        const voteCheck = await pool.query('SELECT id FROM votes WHERE nisn = $1', [nisn]);
+        if (voteCheck.rows.length > 0) {
+            return res.status(400).json({ error: "Anda sudah menggunakan hak suara Anda" });
+        }
+
+        // 3. Simpan suara ke database
+        // Gunakan RETURNING * untuk memastikan data benar-benar tersimpan
+        const result = await pool.query(
+            'INSERT INTO votes (nisn, candidate_id) VALUES ($1, $2) RETURNING *', 
+            [nisn, candidate_id]
+        );
+
+        console.log(`✅ Suara berhasil masuk: NISN ${nisn} memilih kandidat ${candidate_id}`);
+        
+        res.json({ 
+            success: true, 
+            message: "Suara Anda berhasil dikirim!",
+            data: result.rows[0] 
+        });
+
+    } catch (err) {
+        console.error("❌ Error pada rute /votes:", err.message);
+        res.status(500).json({ 
+            error: "Gagal menyimpan suara", 
+            detail: err.message 
+        });
+    }
 });
 
 app.use('/settings', settingsRoutes);
