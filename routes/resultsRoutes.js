@@ -10,7 +10,8 @@ router.get("/", async (req, res) => {
       SELECT 
         c.id, 
         c.name, 
-        COUNT(v.id)::int AS suara
+        COUNT(v.id)::int AS votes_count, -- Gunakan nama yang konsisten dengan frontend
+        COUNT(v.id)::int AS suara        -- Tetap kirim 'suara' untuk kompatibilitas
       FROM candidates c
       LEFT JOIN votes v ON v.candidate_id = c.id
       GROUP BY c.id, c.name
