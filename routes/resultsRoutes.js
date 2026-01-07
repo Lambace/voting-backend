@@ -2,9 +2,6 @@ import express from "express";
 import pool from "../db.js"; // koneksi Postgres
 
 const router = express.Router();
-
-// ✅ 1. Ambil Semua Hasil (Kandidat + jumlah suara)
-// ✅ 1. Ambil Semua Hasil (Diperbarui)
 router.get("/", async (req, res) => {
   try {
     const result = await pool.query(`
@@ -12,21 +9,21 @@ router.get("/", async (req, res) => {
         c.id, 
         c.name, 
         c.nomor_urut,
-        COALESCE(vote_counts.total, 0)::int AS suara,
-        COALESCE(vote_counts.total, 0)::int AS votes_count
+        COALESCE(v.total, 0)::int AS suara,
+        COALESCE(v.total, 0)::int AS votes_count
       FROM candidates c
       LEFT JOIN (
         SELECT candidate_id, COUNT(*) as total 
         FROM votes 
         GROUP BY candidate_id
-      ) vote_counts ON c.id = vote_counts.candidate_id
+      ) v ON c.id = v.candidate_id
       ORDER BY c.nomor_urut ASC
     `);
 
     res.json(result.rows); 
   } catch (err) {
-    console.error("Database Error:", err);
-    res.status(500).json({ error: "Gagal hitung suara" });
+    console.error("Gagal ambil hasil:", err);
+    res.status(500).json({ error: "Gagal ambil data hasil vote" });
   }
 });
 // ✅ 2. Tambahkan Rute Winner (Untuk kebutuhan halaman Hasil Vote)
