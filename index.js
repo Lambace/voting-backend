@@ -247,7 +247,7 @@ app.post('/votes', async (req, res) => {
     }
 });
 
-app.use('/settings', settingsRoutes);
+app.use('/api/settings', settingsRoutes);
 app.get('/', (req, res) => res.send("Backend OSIS Berhasil Jalan!"));
 
 // 🛠️ RUTE DARURAT UNTUK SETUP DATABASE (Jalankan sekali saja)
