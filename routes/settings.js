@@ -42,15 +42,20 @@ router.get("/", async (req, res) => {
 });
 
 // ✅ POST: Update Pengaturan (Mendukung Upload Logo Aplikasi, Logo Kop, dan Link Kop Full)
-
+// BACKEND: router.post("/update", ...)
 router.post("/update", uploadFields, async (req, res) => {
-  const { 
-    voting_open, nama_sekolah, tahun_pelajaran, warna_tema,
-    logo_path, tempat_pelaksanaan, kepsek_nama, kepsek_nip, 
-    ketua_nama, ketua_nip, lokasi_tanda_tangan, kop_full 
-  } = req.body;
-
+  // Pastikan middleware 'uploadFields' sudah terpasang sebelum fungsi ini
+  
   try {
+    // 1. Ambil data teks dari req.body
+    // Jika req.body undefined, berarti Multer tidak bekerja/tidak dipanggil
+    const { 
+      voting_open, nama_sekolah, tahun_pelajaran, warna_tema,
+      logo_path, tempat_pelaksanaan, kepsek_nama, kepsek_nip, 
+      ketua_nama, ketua_nip, lokasi_tanda_tangan, kop_full 
+    } = req.body;
+
+    // 2. Ambil data file (Jika ada)
     const currentData = await pool.query("SELECT logo_url, logo_kop FROM settings LIMIT 1");
     let logo_url = currentData.rows[0]?.logo_url;
     let logo_kop = currentData.rows[0]?.logo_kop;
@@ -62,6 +67,7 @@ router.post("/update", uploadFields, async (req, res) => {
       logo_kop = `/upload/logo/${req.files['logo_kop'][0].filename}`;
     }
 
+    // 3. Query SQL (Hapus koma terakhir sebelum WHERE)
     const query = `
       UPDATE settings SET 
         voting_open = $1, nama_sekolah = $2, tahun_pelajaran = $3, warna_tema = $4, 
@@ -72,32 +78,32 @@ router.post("/update", uploadFields, async (req, res) => {
       RETURNING *;
     `;
 
-    // HARUS 14 VARIABEL DAN URUTANNYA HARUS SAMA DENGAN $1 - $14
+    // 4. Values (HARUS PAS 14 ITEM)
     const values = [
       voting_open === 'true' || voting_open === true, // $1
-      nama_sekolah,         // $2
-      tahun_pelajaran,      // $3
-      warna_tema,           // $4
-      logo_path,            // $5
-      tempat_pelaksanaan,   // $6
-      kepsek_nama,          // $7
-      kepsek_nip,           // $8
-      ketua_nama,           // $9
-      ketua_nip,            // $10
-      logo_url,             // $11
-      lokasi_tanda_tangan,  // $12
-      logo_kop,             // $13
-      kop_full              // $14
+      nama_sekolah || "",    // $2
+      tahun_pelajaran || "", // $3
+      warna_tema || "",      // $4
+      logo_path || "",       // $5
+      tempat_pelaksanaan || "", // $6
+      kepsek_nama || "",     // $7
+      kepsek_nip || "",      // $8
+      ketua_nama || "",      // $9
+      ketua_nip || "",       // $10
+      logo_url || "",        // $11
+      lokasi_tanda_tangan || "", // $12
+      logo_kop || "",        // $13
+      kop_full || ""         // $14
     ];
 
     const result = await pool.query(query, values);
-    res.json({ success: true, message: "Berhasil update!", data: result.rows[0] });
+    res.json({ success: true, message: "Update Berhasil", data: result.rows[0] });
+
   } catch (err) {
-    console.error("DATABASE ERROR:", err.message);
-    res.status(500).json({ error: "Gagal menyimpan: " + err.message });
+    console.error("ERROR BACKEND:", err.message);
+    res.status(500).json({ error: "Gagal menyimpan ke database", detail: err.message });
   }
 });
-
 // DI BACKEND (routes/settings.js atau server.js)
 router.put("/:id", async (req, res) => {
   try {
