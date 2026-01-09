@@ -26,8 +26,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Menyediakan akses publik ke folder upload
 app.use('/upload', express.static(path.join(__dirname, 'upload')));
 
-// --- 2. KONFIGURASI MULTER (PENYIMPANAN FILE) ---
-// Gunakan satu konfigurasi multer yang fleksibel
+// --- 2. KONFIGURASI MULTER ---
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = path.join(__dirname, 'upload');
@@ -37,7 +36,6 @@ const storage = multer.diskStorage({
     cb(null, dir);
   },
   filename: (req, file, cb) => {
-    // Memberi nama unik untuk foto, tapi tetap menjaga nama asli untuk excel sementara
     cb(null, Date.now() + '-' + file.originalname);
   }
 });
@@ -47,12 +45,20 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // Batas 10MB
 });
 
-// --- 3. RUTE MAHASISWA (IMPORT & DOWNLOAD) ---
+// --- 3. RUTE STUDENTS ---
+app.get('/students', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM students ORDER BY id ASC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error get students:", err);
+    res.status(500).json({ error: "Gagal mengambil data siswa" });
+  }
+});
 
-// Rute untuk download format siswa
+// Download format siswa
 app.get('/students/download-format', (req, res) => {
   const filePath = path.join(__dirname, 'upload', 'student-format.xlsx');
-  
   res.download(filePath, 'Format_Import_Siswa.xlsx', (err) => {
     if (err) {
       console.error("Gagal mendownload file:", err);
@@ -61,7 +67,7 @@ app.get('/students/download-format', (req, res) => {
   });
 });
 
-// Rute import file excel
+// Import file excel
 app.post('/students/import', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -74,10 +80,8 @@ app.post('/students/import', upload.single('file'), async (req, res) => {
     const data = xlsx.utils.sheet_to_json(sheet);
 
     for (const row of data) {
-      // Pastikan nama kolom di Excel adalah nisn, name, tingkat, kelas (huruf kecil)
       const { nisn, name, tingkat, kelas } = row;
-      
-      if (!nisn || !name) continue; // Skip jika data kosong
+      if (!nisn || !name) continue;
 
       await pool.query(
         `INSERT INTO students (nisn, name, tingkat, kelas) 
@@ -87,9 +91,7 @@ app.post('/students/import', upload.single('file'), async (req, res) => {
       );
     }
 
-    // Hapus file sementara setelah diproses
     fs.unlinkSync(req.file.path);
-
     res.json({ success: true, message: `${data.length} data siswa berhasil diproses` });
   } catch (err) {
     console.error("Gagal import:", err);
@@ -97,7 +99,33 @@ app.post('/students/import', upload.single('file'), async (req, res) => {
   }
 });
 
-// --- 4. RUTE SETTINGS & KANDIDAT ---
+// Update siswa
+app.put('/students/:nisn', async (req, res) => {
+  const { nisn } = req.params;
+  const { name, tingkat, kelas } = req.body;
+  try {
+    await pool.query(
+      `UPDATE students SET name=$2, tingkat=$3, kelas=$4 WHERE nisn=$1`,
+      [nisn, name, tingkat, kelas]
+    );
+    res.json({ success: true, message: "Data siswa berhasil diperbarui" });
+  } catch (err) {
+    res.status(500).json({ error: "Gagal update siswa" });
+  }
+});
+
+// Hapus siswa
+app.delete('/students/:nisn', async (req, res) => {
+  const { nisn } = req.params;
+  try {
+    await pool.query('DELETE FROM students WHERE nisn=$1', [nisn]);
+    res.json({ success: true, message: "Data siswa berhasil dihapus" });
+  } catch (err) {
+    res.status(500).json({ error: "Gagal hapus siswa" });
+  }
+});
+
+// --- 4. RUTE SETTINGS & CANDIDATES ---
 app.use('/settings', settingsRoutes);
 
 app.get('/candidates', async (req, res) => {
