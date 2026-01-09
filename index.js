@@ -136,6 +136,7 @@ app.get('/candidates', async (req, res) => {
     res.status(500).json({ error: err.message }); 
   }
 });
+// Tambah kandidat app.post('/candidates', upload.single('photo'), async (req, res) => { try { const { id, name, vision, mission, nomor_urut } = req.body; let photoPath = null; if (req.file) { photoPath = `/upload/${req.file.filename}`; } const result = await pool.query( `INSERT INTO candidates (id, name, vision, mission, nomor_urut, photo) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`, [id, name, vision, mission, nomor_urut, photoPath] ); res.json({ success: true, candidate: result.rows[0] }); } catch (err) { console.error("Error add candidate:", err); res.status(500).json({ error: "Gagal menambah kandidat" }); } }); // Update kandidat app.put('/candidates/:id', async (req, res) => { const { id } = req.params; const { name, vision, mission, nomor_urut } = req.body; try { await pool.query( `UPDATE candidates SET name=$2, vision=$3, mission=$4, nomor_urut=$5 WHERE id=$1`, [id, name, vision, mission, nomor_urut] ); res.json({ success: true, message: "Data kandidat berhasil diperbarui" }); } catch (err) { res.status(500).json({ error: "Gagal update kandidat" }); } }); // Hapus kandidat app.delete('/candidates/:id', async (req, res) => { const { id } = req.params; try { await pool.query('DELETE FROM candidates WHERE id=$1', [id]); res.json({ success: true, message: "Kandidat berhasil dihapus" }); } catch (err) { res.status(500).json({ error: "Gagal hapus kandidat" }); } });
 
 // --- 5. RUTE LOGIN & VOTING ---
 app.post('/login', async (req, res) => {
