@@ -51,17 +51,27 @@ router.post("/", upload.single("photo"), async (req, res) => {
   }
 });
 
-// ✅ Edit kandidat
-router.put("/:id", async (req, res) => {
+// ✅ Edit kandidat (Tambahkan upload.single("photo") agar bisa terima file)
+router.put("/:id", upload.single("photo"), async (req, res) => {
   try {
-    const { name, photo, vision, mission } = req.body;
+    const { name, vision, mission, nomor_urut } = req.body;
+    const id = req.params.id;
+
+    // 1. Cek apakah ada file baru yang diupload
+    // Jika ada file baru, ambil nama filenya. 
+    // Jika tidak ada, ambil nilai 'photo' lama dari body (string path)
+    let photo = req.file ? req.file.filename : req.body.photo;
+
+    // 2. Update Database
+    // Tambahkan nomor_urut jika kolomnya ada di DB kamu
     await pool.query(
-      "UPDATE candidates SET name = $1, photo = $2, vision = $3, mission = $4 WHERE id = $5",
-      [name, photo, vision, mission, req.params.id]
+      "UPDATE candidates SET name = $1, photo = $2, vision = $3, mission = $4, nomor_urut = $5 WHERE id = $6",
+      [name, photo, vision, mission, nomor_urut, id]
     );
-    res.json({ message: "Kandidat diperbarui" });
+
+    res.json({ message: "Kandidat diperbarui", photo });
   } catch (err) {
-    console.error(err);
+    console.error("Error Update:", err);
     res.status(500).json({ error: "Gagal memperbarui kandidat" });
   }
 });
