@@ -46,9 +46,8 @@ router.get("/", async (req, res) => {
 router.post("/update", uploadFields, async (req, res) => {
   const { 
     voting_open, nama_sekolah, tahun_pelajaran, warna_tema,
-    kepsek_nama, kepsek_nip, ketua_nama, ketua_nip, 
-    tempat_pelaksanaan, lokasi_tanda_tangan, 
-    kop_full // Ambil data teks/URL kop utuh
+    logo_path, tempat_pelaksanaan, kepsek_nama, kepsek_nip, 
+    ketua_nama, ketua_nip, lokasi_tanda_tangan, kop_full 
   } = req.body;
 
   try {
@@ -56,7 +55,6 @@ router.post("/update", uploadFields, async (req, res) => {
     let logo_url = currentData.rows[0]?.logo_url;
     let logo_kop = currentData.rows[0]?.logo_kop;
 
-    // Cek upload file (Jika ada)
     if (req.files && req.files['logo']) {
       logo_url = `/upload/logo/${req.files['logo'][0].filename}`;
     }
@@ -66,36 +64,37 @@ router.post("/update", uploadFields, async (req, res) => {
 
     const query = `
       UPDATE settings SET 
-        voting_open = $1, 
-          nama_sekolah = $2, 
-          tahun_pelajaran = $3, 
-          warna_tema = $4, 
-          logo_path = $5,
-          tempat_pelaksanaan = $6  ,
-          kepsek_nama = $7,
-          kepsek_nip = $8,
-          ketua_nama = $9,
-          ketua_nip = $10,
-          logo_url = $11,
-          lokasi_tanda_tangan = $12,
-          logo_kop = $13,
-          logo_full = $14,
+        voting_open = $1, nama_sekolah = $2, tahun_pelajaran = $3, warna_tema = $4, 
+        logo_path = $5, tempat_pelaksanaan = $6, kepsek_nama = $7, kepsek_nip = $8, 
+        ketua_nama = $9, ketua_nip = $10, logo_url = $11, lokasi_tanda_tangan = $12, 
+        logo_kop = $13, kop_full = $14
       WHERE id = (SELECT id FROM settings ORDER BY id ASC LIMIT 1)
       RETURNING *;
     `;
 
+    // HARUS 14 VARIABEL DAN URUTANNYA HARUS SAMA DENGAN $1 - $14
     const values = [
-      voting_open, nama_sekolah, tahun_pelajaran, warna_tema,
-      kepsek_nama, kepsek_nip, ketua_nama, ketua_nip, 
-      tempat_pelaksanaan, logo_url, lokasi_tanda_tangan, logo_kop,
-      kop_full // Value ke-13
+      voting_open === 'true' || voting_open === true, // $1
+      nama_sekolah,         // $2
+      tahun_pelajaran,      // $3
+      warna_tema,           // $4
+      logo_path,            // $5
+      tempat_pelaksanaan,   // $6
+      kepsek_nama,          // $7
+      kepsek_nip,           // $8
+      ketua_nama,           // $9
+      ketua_nip,            // $10
+      logo_url,             // $11
+      lokasi_tanda_tangan,  // $12
+      logo_kop,             // $13
+      kop_full              // $14
     ];
 
     const result = await pool.query(query, values);
     res.json({ success: true, message: "Berhasil update!", data: result.rows[0] });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Gagal menyimpan" });
+    console.error("DATABASE ERROR:", err.message);
+    res.status(500).json({ error: "Gagal menyimpan: " + err.message });
   }
 });
 
