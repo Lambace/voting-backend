@@ -66,11 +66,20 @@ router.post("/update", uploadFields, async (req, res) => {
 
     const query = `
       UPDATE settings SET 
-        voting_open = $1, nama_sekolah = $2, tahun_pelajaran = $3, 
-        warna_tema = $4, kepsek_nama = $5, kepsek_nip = $6, 
-        ketua_nama = $7, ketua_nip = $8, tempat_pelaksanaan = $9, 
-        logo_url = $10, lokasi_tanda_tangan = $11, logo_kop = $12,
-        kop_full = $13 -- Menambah kolom ke-13
+        voting_open = $1, 
+          nama_sekolah = $2, 
+          tahun_pelajaran = $3, 
+          warna_tema = $4, 
+          logo_path = $5,
+          tempat_pelaksanaan = $6  ,
+          kepsek_nama = $7,
+          kepsek_nip = $8,
+          ketua_nama = $9,
+          ketua_nip = $10,
+          logo_url = $11,
+          lokasi_tanda_tangan = $12,
+          logo_kop = $13,
+          logo_full = $14,
       WHERE id = (SELECT id FROM settings ORDER BY id ASC LIMIT 1)
       RETURNING *;
     `;
@@ -87,6 +96,43 @@ router.post("/update", uploadFields, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Gagal menyimpan" });
+  }
+});
+
+// DI BACKEND (routes/settings.js atau server.js)
+router.put("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { voting_open, nama_sekolah,	tahun_pelajaran,	warna_tema,	logo_path,	tempat_pelaksanaan,	kepsek_nama,	kepsek_nip,	ketua_nama,	ketua_nip,	logo_url,	lokasi_tanda_tangan,	logo_kop,	kop_full } = req.body;
+
+    // Pastikan urutan variabel ini ($1 sampai $5) SAMA dengan di array [...]
+    const query = `
+      UPDATE settings 
+      SET voting_open = $1, 
+          nama_sekolah = $2, 
+          tahun_pelajaran = $3, 
+          warna_tema = $4, 
+          logo_path = $5,
+          tempat_pelaksanaan = $6  ,
+          kepsek_nama = $7,
+          kepsek_nip = $8,
+          ketua_nama = $9,
+          ketua_nip = $10,
+          logo_url = $11,
+          lokasi_tanda_tangan = $12,
+          logo_kop = $13,
+          logo_full = $14,
+          
+      WHERE id = $15
+    `;
+    
+    await pool.query(query, [voting_open, nama_sekolah,	tahun_pelajaran,	warna_tema,	logo_path,	tempat_pelaksanaan,	kepsek_nama,	kepsek_nip,	ketua_nama,	ketua_nip,	logo_url,	lokasi_tanda_tangan,	logo_kop,	kop_full, id]);
+    
+    res.json({ message: "Berhasil update" });
+  } catch (err) {
+    console.error(err);
+    // Inilah yang terbaca di console frontend kamu
+    res.status(500).json({ error: "Gagal menyimpan", detail: err.message });
   }
 });
 
