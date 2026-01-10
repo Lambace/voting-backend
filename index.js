@@ -16,7 +16,7 @@ const __dirname = path.dirname(__filename);
 
 // --- 1. MIDDLEWARE & CORS ---
 app.use(cors({
-    origin: '*', // bisa diganti dengan domain frontend kamu
+    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
