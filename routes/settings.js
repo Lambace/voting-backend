@@ -1,9 +1,25 @@
 import express from "express";
-import pool from "../db.js"; // koneksi Postgres
+import pool from "../db.js"; 
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 
 const router = express.Router();
 
-// ✅ Ambil status voting + data sekolah
+// --- Konfigurasi Multer untuk upload file kop_full ---
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = "upload/settings";
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + "-" + file.originalname.replace(/\s/g, "_"));
+  },
+});
+const upload = multer({ storage });
+
+// ✅ Ambil semua pengaturan
 router.get("/", async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM settings LIMIT 1");
@@ -13,29 +29,12 @@ router.get("/", async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Gagal mengambil status voting" });
+    res.status(500).json({ error: "Gagal mengambil pengaturan" });
   }
 });
 
-// ✅ Update status voting (opsional)
-router.put("/", async (req, res) => {
-  const { voting_open } = req.body;
-  try {
-    const result = await pool.query(
-      "UPDATE settings SET voting_open = $1 WHERE id = 1 RETURNING *",
-      [voting_open]
-    );
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Gagal update status voting" });
-  }
-});
-
-
-
-// ✅ Update semua pengaturan
-router.post("/update", async (req, res) => {
+// ✅ Update pengaturan (pakai FormData + file upload)
+router.post("/update", upload.single("kop_full"), async (req, res) => {
   try {
     const {
       voting_open,
@@ -50,9 +49,11 @@ router.post("/update", async (req, res) => {
       ketua_nip,
       logo_url,
       lokasi_tanda_tangan,
-      logo_kop,
-      kop_full
+      logo_kop
     } = req.body;
+
+    // kalau ada file baru, simpan path-nya
+    const kopFullPath = req.file ? `/upload/settings/${req.file.filename}` : req.body.kop_full;
 
     const result = await pool.query(
       `UPDATE settings SET
@@ -72,7 +73,7 @@ router.post("/update", async (req, res) => {
         kop_full = $14
       WHERE id = 1 RETURNING *`,
       [
-        voting_open,
+        voting_open === "true" || voting_open === true, // pastikan boolean
         nama_sekolah,
         tahun_pelajaran,
         warna_tema,
@@ -85,16 +86,15 @@ router.post("/update", async (req, res) => {
         logo_url,
         lokasi_tanda_tangan,
         logo_kop,
-        kop_full
+        kopFullPath
       ]
     );
 
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Gagal update settings" });
+    res.status(500).json({ error: "Gagal update pengaturan" });
   }
 });
-
 
 export default router;
