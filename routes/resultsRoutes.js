@@ -2,6 +2,8 @@ import express from "express";
 import pool from "../db.js"; // koneksi Postgres
 
 const router = express.Router();
+
+// ✅ Ambil hasil voting semua kandidat
 router.get("/", async (req, res) => {
   try {
     const result = await pool.query(`
@@ -9,8 +11,7 @@ router.get("/", async (req, res) => {
         c.id, 
         c.name, 
         c.nomor_urut,
-        COALESCE(v.total, 0)::int AS suara,
-        COALESCE(v.total, 0)::int AS votes_count
+        COALESCE(v.total, 0)::int AS suara
       FROM candidates c
       LEFT JOIN (
         SELECT candidate_id, COUNT(*) as total 
@@ -20,13 +21,14 @@ router.get("/", async (req, res) => {
       ORDER BY c.nomor_urut ASC
     `);
 
-    res.json(result.rows); 
+    res.json(result.rows);
   } catch (err) {
     console.error("Gagal ambil hasil:", err);
     res.status(500).json({ error: "Gagal ambil data hasil vote" });
   }
 });
-// ✅ 2. Tambahkan Rute Winner (Untuk kebutuhan halaman Hasil Vote)
+
+// ✅ Ambil pemenang (suara terbanyak)
 router.get("/winner", async (req, res) => {
   try {
     const result = await pool.query(`
@@ -41,14 +43,13 @@ router.get("/winner", async (req, res) => {
       LIMIT 1
     `);
 
-    // Jika belum ada suara sama sekali
     if (result.rows.length === 0 || result.rows[0].suara === 0) {
-      return res.json({ name: "Belum ada pemenang", suara: 0 });
+      return res.json({ id: null, name: "Belum ada pemenang", suara: 0 });
     }
 
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
+    console.error("Gagal ambil pemenang:", err);
     res.status(500).json({ error: "Gagal ambil data pemenang" });
   }
 });
