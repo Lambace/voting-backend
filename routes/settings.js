@@ -4,14 +4,14 @@ import pool from "../db.js"; // koneksi Postgres
 const router = express.Router();
 
 // ✅ Ambil semua pengaturan (nama sekolah, tahun, logo, dll)
-router.get("/", async (req, res) => {
-  try {
-    const result = await pool.query("SELECT * FROM settings LIMIT 1");
-    res.json(result.rows[0] || {});
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Gagal mengambil pengaturan" });
-  }
+router.get('/', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM settings LIMIT 1');
+        res.json(result.rows[0] || {}); // Jika kosong, kirim objek kosong
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Gagal mengambil pengaturan", detail: err.message });
+    }
 });
 
 // ✅ Update pengaturan (admin)
