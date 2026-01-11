@@ -3,11 +3,16 @@ const { Pool } = pkg;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false } // Supabase butuh SSL
+  ssl: { 
+    rejectUnauthorized: false 
+  },
+  // Tambahkan ini agar koneksi tidak menggantung di Vercel
+  max: 1, 
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
 });
-pool.query("SELECT NOW()", (err, res) => {
-  if (err) console.error("❌ Gagal konek ke DB:", err);
-  else console.log("✅ Koneksi DB berhasil:", res.rows[0]);
-});
+
+// Hapus pool.query SELECT NOW() yang di luar fungsi
+// Kita akan mengecek koneksi melalui route '/' di index.js saja
 
 export default pool;
