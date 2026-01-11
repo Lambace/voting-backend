@@ -9,35 +9,29 @@ import fs from 'fs';
 import settingsRoutes from './routes/settings.js';
 import resultsRoutes from "./routes/resultsRoutes.js";
 
-const express = require('express');
-const cors = require('cors'); // 1. Import cors
 const app = express();
 const PORT = process.env.PORT || 8080;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // --- 1. MIDDLEWARE & CORS ---
+// Atur origin ke '*' untuk sementara agar mempermudah testing CORS
 app.use(cors({
-  origin: [
-    "http://localhost:3000",                  // Mengizinkan laptop Anda (dev)
-    "https://pilketos-frontend.vercel.app"   // Ganti dengan domain Vercel Frontend Anda
-  ],
+  origin: '*', 
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true
 }));
 
-app.use(express.json());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Folder untuk upload foto kandidat
+// Folder statis
 app.use('/upload', express.static(path.join(__dirname, 'upload')));
-app.use("/results", resultsRoutes);
 
 // --- 2. KONFIGURASI MULTER ---
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const dir = file.fieldname === 'photo' ? 'upload/candidates' : 'upload/temp';
+        const dir = file.fieldname === 'photo' ? '/tmp/upload/candidates' : '/tmp/upload/temp';
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
     },
@@ -47,7 +41,13 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// --- 3. RUTE STUDENTS ---
+// --- 3. ROUTES ---
+
+// Import Routes yang dipisah
+app.use('/settings', settingsRoutes);
+app.use("/results", resultsRoutes);
+
+// Students Routes
 app.get('/students', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM students ORDER BY tingkat ASC, kelas ASC, name ASC');
@@ -115,7 +115,7 @@ app.post('/students/import', upload.single('file'), async (req, res) => {
     }
 });
 
-// --- 4. RUTE CANDIDATES ---
+// Candidates Routes
 app.get('/candidates', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM candidates ORDER BY nomor_urut ASC');
@@ -139,7 +139,7 @@ app.post('/candidates', upload.single('photo'), async (req, res) => {
     }
 });
 
-// --- 5. RUTE LOGIN & VOTING ---
+// Auth & Voting
 app.post('/login', async (req, res) => {
     const { nisn } = req.body;
     try {
@@ -174,11 +174,11 @@ app.post('/votes', async (req, res) => {
     }
 });
 
-// --- 6. SETTINGS & SERVER STATUS ---
-app.use('/settings', settingsRoutes);
 app.get('/', (req, res) => res.send("Backend OSIS Berhasil Jalan!"));
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Listener untuk lokal
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
 
-
-module.exports = app;
+export default app;
