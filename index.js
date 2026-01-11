@@ -173,3 +173,6 @@ app.use('/settings', settingsRoutes);
 app.get('/', (req, res) => res.send("Backend OSIS Berhasil Jalan!"));
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+
+module.exports = app;
