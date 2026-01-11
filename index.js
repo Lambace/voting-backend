@@ -9,6 +9,8 @@ import fs from 'fs';
 import settingsRoutes from './routes/settings.js';
 import resultsRoutes from "./routes/resultsRoutes.js";
 
+const express = require('express');
+const cors = require('cors'); // 1. Import cors
 const app = express();
 const PORT = process.env.PORT || 8080;
 const __filename = fileURLToPath(import.meta.url);
@@ -16,11 +18,15 @@ const __dirname = path.dirname(__filename);
 
 // --- 1. MIDDLEWARE & CORS ---
 app.use(cors({
-    origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+  origin: [
+    "http://localhost:3000",                  // Mengizinkan laptop Anda (dev)
+    "https://pilketos-frontend.vercel.app"   // Ganti dengan domain Vercel Frontend Anda
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
 }));
 
+app.use(express.json());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
