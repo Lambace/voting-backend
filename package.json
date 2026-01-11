@@ -1,29 +1,26 @@
 {
-  "version": 2,
+  "name": "backend-osis-voting",
   "version": "1.0.0",
-  "type": "module", 
+  "description": "Backend API untuk Sistem Voting OSIS",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "build": "echo 'No build step required'"
+  },
   "dependencies": {
-    "express": "^4.18.2",
-    "pg": "^8.11.0",
     "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
     "multer": "^1.4.5-lts.1",
-    "xlsx": "^0.18.5
-  "builds": [
-    {
-      "src": "index.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "index.js",
-      "headers": {
-        "Access-Control-Allow-Credentials": "true",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET,DELETE,PATCH,POST,PUT",
-        "Access-Control-Allow-Headers": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version"
-      }
-    }
-  ]
+    "pg": "^8.11.3",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": "18.x"
+  }
 }
