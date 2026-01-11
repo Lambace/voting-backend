@@ -3,14 +3,17 @@ import pool from "../db.js";
 import multer from "multer";
 import xlsx from "xlsx";
 import path from "path";
+import fs from "fs";
 
 const router = express.Router();
-const upload = multer({ dest: "upload/" });
+
+// ✅ KONFIGURASI MULTER (Wajib pakai /tmp untuk Vercel)
+const upload = multer({ dest: "/tmp/" });
 
 // ✅ Ambil semua siswa
 router.get("/", async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM students");
+    const result = await pool.query("SELECT * FROM students ORDER BY id ASC");
     res.json(result.rows);
   } catch (err) {
     console.error("Error ambil siswa:", err);
@@ -19,14 +22,13 @@ router.get("/", async (req, res) => {
 });
 
 // ✅ Download format siswa (file statis)
+// Catatan: Pastikan file 'student-format.xlsx' ada di folder 'upload' di GitHub kamu
 router.get("/download-format", (req, res) => {
   const filePath = path.join(process.cwd(), "upload", "student-format.xlsx");
-  res.download(filePath, "student-format.xlsx", (err) => {
-    if (err) {
-      console.error("Gagal download file:", err);
-      res.status(500).send("File tidak ditemukan");
-    }
-  });
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: "File template fisik tidak ditemukan di folder upload" });
+  }
+  res.download(filePath, "student-format.xlsx");
 });
 
 // ✅ Tambah siswa
@@ -39,7 +41,6 @@ router.post("/", async (req, res) => {
     );
     res.json(result.rows[0]);
   } catch (err) {
-    console.error("Error tambah siswa:", err);
     res.status(500).json({ error: "Gagal menambahkan siswa" });
   }
 });
@@ -52,12 +53,9 @@ router.put("/:id", async (req, res) => {
       "UPDATE students SET nisn=$1, name=$2, tingkat=$3, kelas=$4 WHERE id=$5",
       [nisn, name, tingkat, kelas, req.params.id]
     );
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Siswa tidak ditemukan" });
-    }
+    if (result.rowCount === 0) return res.status(404).json({ error: "Siswa tidak ditemukan" });
     res.json({ message: "Siswa diperbarui" });
   } catch (err) {
-    console.error("Error update siswa:", err);
     res.status(500).json({ error: "Gagal memperbarui siswa" });
   }
 });
@@ -66,57 +64,56 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const result = await pool.query("DELETE FROM students WHERE id=$1", [req.params.id]);
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Siswa tidak ditemukan" });
-    }
+    if (result.rowCount === 0) return res.status(404).json({ error: "Siswa tidak ditemukan" });
     res.json({ message: "Siswa dihapus" });
   } catch (err) {
-    console.error("Error hapus siswa:", err);
     res.status(500).json({ error: "Gagal menghapus siswa" });
   }
 });
 
-// ✅ Reset semua siswa
+// ✅ Reset semua siswa (FITUR LENGKAP)
 router.delete("/", async (req, res) => {
   try {
     const result = await pool.query("DELETE FROM students");
     res.json({ message: "Semua siswa dihapus", affected: result.rowCount });
   } catch (err) {
-    console.error("Error reset siswa:", err);
     res.status(500).json({ error: "Gagal reset siswa" });
   }
 });
 
-// ✅ Import siswa dari Excel (Backend)
+// ✅ Import siswa dari Excel (SUDAH DIPERBAIKI UNTUK VERCEL)
 router.post("/import", upload.single("file"), async (req, res) => {
   try {
+    if (!req.file) return res.status(400).json({ error: "File tidak terupload" });
+
     const workbook = xlsx.readFile(req.file.path);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = xlsx.utils.sheet_to_json(sheet);
 
     for (const row of rows) {
-      // Pastikan nama kolom di Excel (nisn, name, tingkat, kelas) 
-      // sama dengan variabel di bawah ini
       const { nisn, name, tingkat, kelas } = row;
       await pool.query(
         "INSERT INTO students (nisn, name, tingkat, kelas) VALUES ($1, $2, $3, $4) ON CONFLICT (nisn) DO NOTHING",
         [nisn, name, tingkat, kelas]
       );
     }
+
+    // Hapus file temp setelah selesai
+    fs.unlinkSync(req.file.path);
     res.json({ message: "Data siswa berhasil diimport" });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Gagal import siswa" });
   }
 });
 
-
-// ✅ Download template Excel
+// ✅ Download template Excel (Auto Generated)
 router.get("/download", async (req, res) => {
   try {
     const wb = xlsx.utils.book_new();
     const wsData = [
-      ["nisn", "name", "tingkat", "kelas"], // header
-      ["1234567890", "Agus Setia", "X", "X TJKT 1"], // contoh baris
+      ["nisn", "name", "tingkat", "kelas"],
+      ["1234567890", "Agus Setia", "X", "X TJKT 1"],
     ];
     const ws = xlsx.utils.aoa_to_sheet(wsData);
     xlsx.utils.book_append_sheet(wb, ws, "Template");
@@ -127,7 +124,6 @@ router.get("/download", async (req, res) => {
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.send(buf);
   } catch (err) {
-    console.error("Error download template:", err);
     res.status(500).json({ error: "Gagal download template" });
   }
 });
