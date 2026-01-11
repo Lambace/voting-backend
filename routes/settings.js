@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
         res.status(500).json({ error: "Gagal mengambil pengaturan", detail: err.message });
     }
 });
-
+ 
 // ✅ Update pengaturan (admin)
 router.put("/", async (req, res) => {
   const {
