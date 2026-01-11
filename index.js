@@ -15,7 +15,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // --- 1. MIDDLEWARE & CORS ---
-// Atur origin ke '*' untuk sementara agar mempermudah testing CORS
 app.use(cors({
   origin: '*', 
   methods: ["GET", "POST", "PUT", "DELETE"],
@@ -25,13 +24,11 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Folder statis
-app.use('/upload', express.static(path.join(__dirname, 'upload')));
-
-// --- 2. KONFIGURASI MULTER ---
+// --- 2. KONFIGURASI MULTER (KHUSUS VERCEL) ---
+// Vercel adalah Read-Only kecuali folder /tmp
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const dir = file.fieldname === 'photo' ? '/tmp/upload/candidates' : '/tmp/upload/temp';
+        const dir = '/tmp/upload'; // Gunakan folder /tmp agar tidak error di Vercel
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
     },
@@ -42,10 +39,18 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // --- 3. ROUTES ---
-
-// Import Routes yang dipisah
 app.use('/settings', settingsRoutes);
 app.use("/results", resultsRoutes);
+
+// Helper untuk mengecek koneksi DB di root
+app.get('/', async (req, res) => {
+    try {
+        await pool.query('SELECT NOW()');
+        res.json({ status: "Online", message: "Backend & Database Terhubung!" });
+    } catch (err) {
+        res.status(500).json({ status: "Error", message: "DB Connection Failed", error: err.message });
+    }
+});
 
 // Students Routes
 app.get('/students', async (req, res) => {
@@ -53,7 +58,7 @@ app.get('/students', async (req, res) => {
         const result = await pool.query('SELECT * FROM students ORDER BY tingkat ASC, kelas ASC, name ASC');
         res.json(result.rows);
     } catch (err) {
-        res.status(500).json({ error: "Gagal mengambil data siswa" });
+        res.status(500).json({ error: "Gagal mengambil data siswa", detail: err.message });
     }
 });
 
@@ -70,31 +75,7 @@ app.post('/students', async (req, res) => {
     }
 });
 
-app.put('/students/:nisn', async (req, res) => {
-    const { nisn } = req.params;
-    const { name, tingkat, kelas } = req.body;
-    try {
-        const result = await pool.query(
-            'UPDATE students SET name = $1, tingkat = $2, kelas = $3 WHERE nisn = $4 RETURNING *',
-            [name, tingkat, kelas, nisn]
-        );
-        res.json(result.rows[0]);
-    } catch (err) {
-        res.status(500).json({ error: "Gagal update data siswa" });
-    }
-});
-
-app.delete('/students/:nisn', async (req, res) => {
-    const { nisn } = req.params;
-    try {
-        await pool.query('DELETE FROM students WHERE nisn = $1', [nisn]);
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: "Gagal menghapus siswa" });
-    }
-});
-
-// Import Excel
+// Import Excel (Disesuaikan untuk Vercel)
 app.post('/students/import', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "File tidak ditemukan" });
@@ -108,34 +89,45 @@ app.post('/students/import', upload.single('file'), async (req, res) => {
                 [row.nisn, row.name, row.tingkat, row.kelas]
             );
         }
-        fs.unlinkSync(req.file.path);
+        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         res.json({ success: true, message: `${data.length} data berhasil diimport` });
     } catch (err) {
-        res.status(500).json({ error: "Gagal memproses file excel" });
+        res.status(500).json({ error: "Gagal memproses excel", detail: err.message });
     }
 });
 
-// Candidates Routes
+// Export Data Siswa ke Excel
+app.get('/students/export', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT nisn, name, tingkat, kelas FROM students ORDER BY tingkat ASC, kelas ASC');
+        const students = result.rows;
+
+        // Buat workbook dan worksheet
+        const worksheet = xlsx.utils.json_to_sheet(students);
+        const workbook = xlsx.utils.book_new();
+        xlsx.utils.book_append_sheet(workbook, worksheet, "Data Siswa");
+
+        // Simpan ke buffer (Memory) karena Vercel tidak bisa simpan file permanen
+        const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+        // Set header agar browser mendownload file
+        res.setHeader('Content-Disposition', 'attachment; filename="data_siswa_osis.xlsx"');
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        
+        res.send(buffer);
+    } catch (err) {
+        console.error("Export Error:", err.message);
+        res.status(500).json({ error: "Gagal mengekspor data ke Excel" });
+    }
+});
+
+// Candidates
 app.get('/candidates', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM candidates ORDER BY nomor_urut ASC');
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
-    }
-});
-
-app.post('/candidates', upload.single('photo'), async (req, res) => {
-    const { name, vision, mission, nomor_urut } = req.body;
-    const photoPath = req.file ? `/upload/candidates/${req.file.filename}` : null;
-    try {
-        const result = await pool.query(
-            'INSERT INTO candidates (name, photo, vision, mission, nomor_urut) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [name, photoPath, vision, mission, nomor_urut || 0]
-        );
-        res.json(result.rows[0]);
-    } catch (err) {
-        res.status(500).json({ error: "Gagal simpan kandidat" });
     }
 });
 
@@ -151,7 +143,7 @@ app.post('/login', async (req, res) => {
 
         res.json({ success: true, alreadyVoted: v.rows.length > 0, user: s.rows[0] });
     } catch (err) {
-        res.status(500).json({ error: "Server Error" });
+        res.status(500).json({ error: "Server Error", detail: err.message });
     }
 });
 
@@ -173,8 +165,6 @@ app.post('/votes', async (req, res) => {
         res.status(500).json({ error: "Gagal menyimpan suara" });
     }
 });
-
-app.get('/', (req, res) => res.send("Backend OSIS Berhasil Jalan!"));
 
 // Listener untuk lokal
 if (process.env.NODE_ENV !== 'production') {
